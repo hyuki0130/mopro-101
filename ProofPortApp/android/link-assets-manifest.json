@@ -1,0 +1,21 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/circuits/age_verifier.json",
+      "sha1": "d4d95a90cfe0b5a518610116ed1eb322a628e236"
+    },
+    {
+      "path": "assets/circuits/age_verifier.srs",
+      "sha1": "b328db23de94269e32e0659f1c9cca40432ae450"
+    },
+    {
+      "path": "assets/circuits/zk_coinbase_attestor.json",
+      "sha1": "7e37cddc6ffa50278647a608cca148ab111fcf00"
+    },
+    {
+      "path": "assets/circuits/zk_coinbase_attestor.srs",
+      "sha1": "787a3a2596294be3ef0dd24ba991c8bebbef1a43"
+    }
+  ]
+}
