@@ -1,0 +1,129 @@
+# ====================
+# OS Generated Files
+# ====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# ====================
+# IDE / Editor
+# ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ====================
+# Claude Code
+# ====================
+.claude/
+
+# ====================
+# Rust / Mopro Build
+# ====================
+target/
+Cargo.lock
+*.jar
+
+# ====================
+# Node.js
+# ====================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.npm
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# ====================
+# React Native
+# ====================
+# Metro
+.metro-health-check*
+
+# Bundle artifacts
+*.jsbundle
+
+# Build outputs
+*.ipa
+*.apk
+*.aab
+
+# ====================
+# iOS / Xcode
+# ====================
+build/
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.hmap
+*.xcuserstate
+**/.xcode.env.local
+
+# CocoaPods
+Pods/
+
+# ====================
+# Android
+# ====================
+.gradle/
+.cxx/
+.kotlin/
+local.properties
+*.iml
+*.hprof
+*.keystore
+!debug.keystore
+
+# ====================
+# Ruby / Bundler
+# ====================
+vendor/bundle/
+.bundle/
+Gemfile.lock
+
+# ====================
+# Testing
+# ====================
+coverage/
+
+# ====================
+# Fastlane
+# ====================
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots/
+**/fastlane/test_output/
+
+# ====================
+# Mopro Bindings Build
+# ====================
+# Compiled libraries
+*.xcframework/
+lib/
+
+# ====================
+# Temporary Files
+# ====================
+*.log
+*.tmp
+*.temp
