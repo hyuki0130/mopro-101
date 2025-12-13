@@ -1,6 +1,7 @@
 export type RootStackParamList = {
   Main: undefined;
   AgeVerifier: undefined;
+  CoinbaseKyc: undefined;
   Metamask: undefined;
 };
 

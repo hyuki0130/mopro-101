@@ -2,7 +2,7 @@ import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {MetaMaskProvider} from '@metamask/sdk-react-native';
-import {MainScreen, AgeVerifierScreen, MetamaskScreen} from './src/screens';
+import {MainScreen, AgeVerifierScreen, CoinbaseKycScreen, MetamaskScreen} from './src/screens';
 import type {RootStackParamList} from './src/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -39,6 +39,11 @@ const App: React.FC = () => {
             name="AgeVerifier"
             component={AgeVerifierScreen}
             options={{title: 'Age Verifier'}}
+          />
+          <Stack.Screen
+            name="CoinbaseKyc"
+            component={CoinbaseKycScreen}
+            options={{title: 'Coinbase KYC'}}
           />
           <Stack.Screen
             name="Metamask"

@@ -31,6 +31,15 @@ export const MainScreen: React.FC<MainScreenProps> = ({navigation}) => {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={[styles.button, styles.coinbaseKycButton]}
+            onPress={() => navigation.navigate('CoinbaseKyc')}>
+            <Text style={styles.buttonText}>Coinbase KYC</Text>
+            <Text style={styles.buttonDescription}>
+              Prove identity verification
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.button, styles.metamaskButton]}
             onPress={() => navigation.navigate('Metamask')}>
             <Text style={styles.buttonText}>Metamask</Text>
@@ -82,6 +91,9 @@ const styles = StyleSheet.create({
   },
   ageVerifierButton: {
     backgroundColor: '#007AFF',
+  },
+  coinbaseKycButton: {
+    backgroundColor: '#0052FF', // Coinbase blue
   },
   metamaskButton: {
     backgroundColor: '#F6851B',
