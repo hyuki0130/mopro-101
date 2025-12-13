@@ -21,6 +21,7 @@ Thumbs.db
 # Claude Code
 # ====================
 .claude/
+CLAUDE.md
 
 # ====================
 # Rust / Mopro Build
