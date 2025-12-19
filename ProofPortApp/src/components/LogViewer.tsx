@@ -3,7 +3,7 @@ import {View, Text, ScrollView, StyleSheet, Platform, TouchableOpacity, Clipboar
 
 interface LogViewerProps {
   logs: string[];
-  scrollRef: React.RefObject<ScrollView>;
+  scrollRef: React.RefObject<ScrollView | null>;
 }
 
 export const LogViewer: React.FC<LogViewerProps> = ({logs, scrollRef}) => {

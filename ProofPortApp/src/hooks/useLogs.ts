@@ -6,7 +6,7 @@ export interface UseLogsReturn {
   logs: string[];
   addLog: (message: string) => void;
   clearLogs: () => void;
-  logScrollRef: React.RefObject<ScrollView>;
+  logScrollRef: React.RefObject<ScrollView | null>;
 }
 
 /**

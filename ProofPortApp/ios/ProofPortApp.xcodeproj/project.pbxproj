@@ -7,36 +7,32 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0C80B921A6F3F58F76C31292 /* libPods-ProofPortApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-ProofPortApp.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
-		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
-		D9D93DCB2EEB1B0B0039FC67 /* age_verifier.json in Resources */ = {isa = PBXBuildFile; fileRef = D9D93DC92EEB1B0B0039FC67 /* age_verifier.json */; };
-		D9D93DCC2EEB1B0B0039FC67 /* age_verifier.srs in Resources */ = {isa = PBXBuildFile; fileRef = D9D93DCA2EEB1B0B0039FC67 /* age_verifier.srs */; };
-		F375E371E56193014C2599E8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		3ACB6F6CC9AF691568D423FB /* libPods-ProofPortApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 78523E2192C1DA8B734DDB35 /* libPods-ProofPortApp.a */; };
 		3BAB5A234D4F4303BC98C18D /* age_verifier.json in Resources */ = {isa = PBXBuildFile; fileRef = B6E95880CB76413C879B5C27 /* age_verifier.json */; };
 		534301CD6B144F3895889C20 /* age_verifier.srs in Resources */ = {isa = PBXBuildFile; fileRef = 9159F19FF2A047CFB314C138 /* age_verifier.srs */; };
-		756B0BA53FF742D5B192702D /* zk_coinbase_attestor.json in Resources */ = {isa = PBXBuildFile; fileRef = 02737789D17E4528A4F62EEC /* zk_coinbase_attestor.json */; };
 		56032E921A0F436A97081B89 /* zk_coinbase_attestor.srs in Resources */ = {isa = PBXBuildFile; fileRef = 6547D52854164A84973CA874 /* zk_coinbase_attestor.srs */; };
+		756B0BA53FF742D5B192702D /* zk_coinbase_attestor.json in Resources */ = {isa = PBXBuildFile; fileRef = 02737789D17E4528A4F62EEC /* zk_coinbase_attestor.json */; };
+		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		F375E371E56193014C2599E8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		02737789D17E4528A4F62EEC /* zk_coinbase_attestor.json */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = zk_coinbase_attestor.json; path = ../assets/circuits/zk_coinbase_attestor.json; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* ProofPortApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ProofPortApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = ProofPortApp/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = ProofPortApp/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = ProofPortApp/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		3B4392A12AC88292D35C810B /* Pods-ProofPortApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ProofPortApp.debug.xcconfig"; path = "Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp.debug.xcconfig"; sourceTree = "<group>"; };
-		5709B34CF0A7D63546082F79 /* Pods-ProofPortApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ProofPortApp.release.xcconfig"; path = "Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp.release.xcconfig"; sourceTree = "<group>"; };
-		5DCACB8F33CDC322A6C60F78 /* libPods-ProofPortApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ProofPortApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E89F36D9CA160358622E402 /* Pods-ProofPortApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ProofPortApp.debug.xcconfig"; path = "Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp.debug.xcconfig"; sourceTree = "<group>"; };
+		6547D52854164A84973CA874 /* zk_coinbase_attestor.srs */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = zk_coinbase_attestor.srs; path = ../assets/circuits/zk_coinbase_attestor.srs; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = ProofPortApp/AppDelegate.swift; sourceTree = "<group>"; };
+		78523E2192C1DA8B734DDB35 /* libPods-ProofPortApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ProofPortApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = ProofPortApp/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		D9D93DC92EEB1B0B0039FC67 /* age_verifier.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = age_verifier.json; path = ProofPortApp/age_verifier.json; sourceTree = "<group>"; };
-		D9D93DCA2EEB1B0B0039FC67 /* age_verifier.srs */ = {isa = PBXFileReference; lastKnownFileType = file; name = age_verifier.srs; path = ProofPortApp/age_verifier.srs; sourceTree = "<group>"; };
+		9159F19FF2A047CFB314C138 /* age_verifier.srs */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = age_verifier.srs; path = ../assets/circuits/age_verifier.srs; sourceTree = "<group>"; };
+		B6E95880CB76413C879B5C27 /* age_verifier.json */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = age_verifier.json; path = ../assets/circuits/age_verifier.json; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		B6E95880CB76413C879B5C27 /* age_verifier.json */ = {isa = PBXFileReference; name = "age_verifier.json"; path = "../assets/circuits/age_verifier.json"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		9159F19FF2A047CFB314C138 /* age_verifier.srs */ = {isa = PBXFileReference; name = "age_verifier.srs"; path = "../assets/circuits/age_verifier.srs"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		02737789D17E4528A4F62EEC /* zk_coinbase_attestor.json */ = {isa = PBXFileReference; name = "zk_coinbase_attestor.json"; path = "../assets/circuits/zk_coinbase_attestor.json"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		6547D52854164A84973CA874 /* zk_coinbase_attestor.srs */ = {isa = PBXFileReference; name = "zk_coinbase_attestor.srs"; path = "../assets/circuits/zk_coinbase_attestor.srs"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		EEA58DF4D7675AA875171AFC /* Pods-ProofPortApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ProofPortApp.release.xcconfig"; path = "Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,7 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0C80B921A6F3F58F76C31292 /* libPods-ProofPortApp.a in Frameworks */,
+				3ACB6F6CC9AF691568D423FB /* libPods-ProofPortApp.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -54,8 +50,6 @@
 		13B07FAE1A68108700A75B9A /* ProofPortApp */ = {
 			isa = PBXGroup;
 			children = (
-				D9D93DC92EEB1B0B0039FC67 /* age_verifier.json */,
-				D9D93DCA2EEB1B0B0039FC67 /* age_verifier.srs */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -69,7 +63,7 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				5DCACB8F33CDC322A6C60F78 /* libPods-ProofPortApp.a */,
+				78523E2192C1DA8B734DDB35 /* libPods-ProofPortApp.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -104,17 +98,8 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				3B4392A12AC88292D35C810B /* Pods-ProofPortApp.debug.xcconfig */,
-				5709B34CF0A7D63546082F79 /* Pods-ProofPortApp.release.xcconfig */,
-			);
-			path = Pods;
-			sourceTree = "<group>";
-		};
 		A8E8118FD6CE43B1AADD9AEC /* Resources */ = {
-			isa = "PBXGroup";
+			isa = PBXGroup;
 			children = (
 				B6E95880CB76413C879B5C27 /* age_verifier.json */,
 				9159F19FF2A047CFB314C138 /* age_verifier.srs */,
@@ -123,7 +108,15 @@
 			);
 			name = Resources;
 			sourceTree = "<group>";
-			path = "";
+		};
+		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				5E89F36D9CA160358622E402 /* Pods-ProofPortApp.debug.xcconfig */,
+				EEA58DF4D7675AA875171AFC /* Pods-ProofPortApp.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
@@ -132,13 +125,13 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "ProofPortApp" */;
 			buildPhases = (
-				C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */,
+				B1325321F6A9042A925B4253 /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
-				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
+				E23AE5BC6405838FFD569C83 /* [CP] Embed Pods Frameworks */,
+				A13F5B7E829313DE88CBD582 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -186,8 +179,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
-				D9D93DCB2EEB1B0B0039FC67 /* age_verifier.json in Resources */,
-				D9D93DCC2EEB1B0B0039FC67 /* age_verifier.srs in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				F375E371E56193014C2599E8 /* PrivacyInfo.xcprivacy in Resources */,
 				3BAB5A234D4F4303BC98C18D /* age_verifier.json in Resources */,
@@ -216,24 +207,24 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"\\\"$WITH_ENVIRONMENT\\\" \\\"$REACT_NATIVE_XCODE\\\"\"\n";
 		};
-		00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */ = {
+		A13F5B7E829313DE88CBD582 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			name = "[CP] Embed Pods Frameworks";
+			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */ = {
+		B1325321F6A9042A925B4253 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -255,21 +246,21 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		E235C05ADACE081382539298 /* [CP] Copy Pods Resources */ = {
+		E23AE5BC6405838FFD569C83 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-resources-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			name = "[CP] Copy Pods Resources";
+			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-resources-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ProofPortApp/Pods-ProofPortApp-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -288,7 +279,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-ProofPortApp.debug.xcconfig */;
+			baseConfigurationReference = 5E89F36D9CA160358622E402 /* Pods-ProofPortApp.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -307,7 +298,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.proofport.--PRODUCT-NAME-rfc1034identifier-";
+				PRODUCT_BUNDLE_IDENTIFIER = com.proofport.ProofPortApp;
 				PRODUCT_NAME = ProofPortApp;
 				SWIFT_OBJC_BRIDGING_HEADER = "ProofPortApp/ProofPortApp-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -318,7 +309,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-ProofPortApp.release.xcconfig */;
+			baseConfigurationReference = EEA58DF4D7675AA875171AFC /* Pods-ProofPortApp.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -336,7 +327,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.proofport.--PRODUCT-NAME-rfc1034identifier-";
+				PRODUCT_BUNDLE_IDENTIFIER = com.proofport.ProofPortApp;
 				PRODUCT_NAME = ProofPortApp;
 				SWIFT_OBJC_BRIDGING_HEADER = "ProofPortApp/ProofPortApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;

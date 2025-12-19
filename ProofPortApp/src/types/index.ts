@@ -2,7 +2,7 @@ export type RootStackParamList = {
   Main: undefined;
   AgeVerifier: undefined;
   CoinbaseKyc: undefined;
-  Metamask: undefined;
+  Wallet: undefined;
 };
 
 export interface AgeVerifierInputs {
@@ -23,9 +23,15 @@ export type ProofStatus =
   | 'Generating proof...'
   | 'Proof ready'
   | 'Verifying proof...'
+  | 'Verifying proof (off-chain)...'
+  | 'Verifying proof on-chain...'
   | 'Proof verified!'
+  | 'Proof verified (off-chain)!'
+  | 'Proof verified on-chain!'
   | 'Proof invalid'
+  | 'Proof invalid (on-chain)'
   | 'Error generating VK'
   | 'Error generating proof'
   | 'Error verifying proof'
+  | 'Error: on-chain verification failed'
   | 'Invalid input';

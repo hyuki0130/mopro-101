@@ -11,108 +11,153 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import {LogViewer} from '../components';
-import {useLogs} from '../hooks';
-import {
-  generateNoirProof,
-  verifyNoirProof,
-  getNoirVerificationKey,
-} from 'mopro-ffi';
-import {getAssetPath, arrayBufferToHex} from '../utils';
-
-type ProofStatus =
-  | 'Ready'
-  | 'Generating verification key...'
-  | 'Verification key ready'
-  | 'Generating proof...'
-  | 'Proof ready'
-  | 'Verifying proof...'
-  | 'Proof verified!'
-  | 'Proof invalid'
-  | 'Error';
+import {useLogs, useCoinbaseKyc, useWalletConnect} from '../hooks';
+import {findAttestationTransaction} from '../utils';
 
 export const CoinbaseKycScreen: React.FC = () => {
+  const [rawTransaction, setRawTransaction] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const {logs, addLog, clearLogs, logScrollRef} = useLogs();
-  const [status, setStatus] = useState<ProofStatus>('Ready');
-  const [isLoading, setIsLoading] = useState(false);
-  const [vk, setVk] = useState<ArrayBuffer | null>(null);
-  const [proof, setProof] = useState<ArrayBuffer | null>(null);
+  const {
+    status,
+    isLoading,
+    vk,
+    proof,
+    generateVK,
+    generateProofWithSignature,
+    verifyProof,
+    verifyProofOnChain,
+    validateTransaction,
+  } = useCoinbaseKyc();
 
-  const handleGenerateVK = useCallback(async () => {
-    setIsLoading(true);
-    setStatus('Generating verification key...');
-    addLog('Starting VK generation for Coinbase KYC circuit');
+  // Get wallet connection from WalletConnect hook
+  const {
+    account,
+    status: walletStatus,
+    connect: connectWallet,
+    disconnect: disconnectWallet,
+    formattedAddress,
+    getProvider,
+  } = useWalletConnect(addLog);
 
-    try {
-      const circuitPath = await getAssetPath('zk_coinbase_attestor.json');
-      const srsPath = await getAssetPath('zk_coinbase_attestor.srs');
+  const handleGenerateVK = useCallback(() => {
+    generateVK(addLog);
+  }, [generateVK, addLog]);
 
-      addLog(`Circuit: ${circuitPath}`);
-      addLog(`SRS: ${srsPath}`);
-
-      const startTime = Date.now();
-      const generatedVk = getNoirVerificationKey(
-        circuitPath,
-        srsPath,
-        true, // onChain: true = Keccak hash (for Solidity)
-        true, // lowMemoryMode
-      );
-      const elapsed = Date.now() - startTime;
-
-      setVk(generatedVk);
-      addLog(`VK generated in ${elapsed}ms`);
-      addLog(`VK size: ${generatedVk.byteLength} bytes`);
-      setStatus('Verification key ready');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      addLog(`Error: ${errorMessage}`);
-      setStatus('Error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [addLog]);
-
-  const handleTestProof = useCallback(async () => {
-    if (!vk) {
-      addLog('Please generate VK first');
+  const handleSearchAttestation = useCallback(async () => {
+    if (!account) {
+      addLog('Please connect wallet first');
       return;
     }
 
-    setIsLoading(true);
-    setStatus('Generating proof...');
-    addLog('Starting test proof generation');
-    addLog('Note: Using dummy inputs for testing');
+    setIsSearching(true);
+    addLog('=== Searching for Coinbase Attestation ===');
 
     try {
-      const circuitPath = await getAssetPath('zk_coinbase_attestor.json');
-      const srsPath = await getAssetPath('zk_coinbase_attestor.srs');
+      const result = await findAttestationTransaction(account, addLog);
 
-      // TODO: Replace with real inputs
-      // For now, we just test if the circuit loads correctly
-      addLog('Circuit loaded successfully');
-      addLog('Full proof generation requires real Coinbase attestation data');
-      setStatus('Ready');
+      if (result) {
+        setRawTransaction(result.rawTransaction);
+        addLog('Attestation transaction found and loaded!');
+        addLog(`TX length: ${result.rawTransaction.length} characters`);
+
+        // Auto-validate the found transaction
+        addLog('--- Auto-validating transaction ---');
+        const isValid = validateTransaction(result.rawTransaction, account, addLog);
+        if (isValid) {
+          addLog('Transaction is ready for proof generation!');
+        }
+      } else {
+        addLog('No valid attestation found for this wallet');
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      addLog(`Error: ${errorMessage}`);
-      setStatus('Error');
+      addLog(`Search failed: ${errorMessage}`);
     } finally {
-      setIsLoading(false);
+      setIsSearching(false);
     }
-  }, [vk, addLog]);
+  }, [account, addLog, validateTransaction]);
+
+  const handleGenerateProof = useCallback(async () => {
+    if (!account) {
+      addLog('Please connect wallet first');
+      return;
+    }
+    if (!rawTransaction) {
+      addLog('Please enter attestation transaction');
+      return;
+    }
+
+    // Get WalletConnect provider for signing
+    const provider = await getProvider();
+    if (!provider) {
+      addLog('No wallet provider available');
+      return;
+    }
+
+    // Create EIP-1193 compatible provider wrapper for useCoinbaseKyc
+    const ethereumProvider = {
+      request: async (args: {method: string; params?: unknown[]}) => {
+        return provider.send(args.method, args.params || []);
+      },
+    };
+
+    // Pass provider for signing (SDK is null for WalletConnect)
+    generateProofWithSignature(
+      {
+        userAddress: account,
+        rawTransaction,
+        signerIndex: 0, // Will be auto-detected
+      },
+      ethereumProvider,
+      null, // No SDK for WalletConnect
+      addLog,
+    );
+  }, [generateProofWithSignature, account, rawTransaction, getProvider, addLog]);
+
+  const handleVerifyProof = useCallback(() => {
+    verifyProof(addLog);
+  }, [verifyProof, addLog]);
+
+  const handleVerifyProofOnChain = useCallback(() => {
+    verifyProofOnChain(addLog);
+  }, [verifyProofOnChain, addLog]);
 
   const getStatusColor = () => {
-    if (status.includes('Error') || status === 'Proof invalid') return '#FF3B30';
-    if (status === 'Proof verified!') return '#34C759';
+    if (status.includes('Error') || status.includes('invalid')) return '#FF3B30';
+    if (status.includes('verified')) return '#34C759';
     if (status === 'Ready') return '#8E8E93';
-    return '#007AFF';
+    return '#0052FF';
   };
+
+  const getWalletButtonStyle = () => {
+    if (walletStatus === 'connected') return styles.connectedButton;
+    if (walletStatus === 'connecting') return styles.connectingButton;
+    return styles.disconnectedButton;
+  };
+
+  const getWalletButtonText = () => {
+    if (walletStatus === 'connected') return `${formattedAddress} (Disconnect)`;
+    if (walletStatus === 'connecting') return 'Connecting...';
+    return 'Connect Wallet';
+  };
+
+  const handleWalletPress = () => {
+    if (walletStatus === 'connected') {
+      disconnectWallet();
+    } else {
+      connectWallet();
+    }
+  };
+
+  const isProcessing = isLoading || isSearching;
 
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}>
-        <ScrollView style={styles.scrollView}>
+        <ScrollView style={styles.scrollView} keyboardShouldPersistTaps="handled">
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Coinbase KYC Verifier</Text>
@@ -124,49 +169,109 @@ export const CoinbaseKycScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Info Card */}
-          <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>How it works</Text>
-            <Text style={styles.infoText}>
-              1. Connect your MetaMask wallet{'\n'}
-              2. Find your Coinbase attestation TX{'\n'}
-              3. Generate ZK proof of KYC{'\n'}
-              4. Verify on-chain or off-chain
-            </Text>
+          {/* Wallet Connection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Step 1: Connect Wallet</Text>
+            <TouchableOpacity
+              style={[styles.walletButton, getWalletButtonStyle()]}
+              onPress={handleWalletPress}
+              disabled={walletStatus === 'connecting'}>
+              <Text style={styles.walletButtonText}>{getWalletButtonText()}</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Action Buttons */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.primaryButton]}
-              onPress={handleGenerateVK}
-              disabled={isLoading}>
-              <Text style={styles.buttonText}>Generate VK</Text>
-            </TouchableOpacity>
+          {/* Attestation Search */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Step 2: Find Attestation</Text>
+            <Text style={styles.sectionDesc}>
+              Search for your Coinbase attestation on Base chain
+            </Text>
 
             <TouchableOpacity
               style={[
                 styles.button,
-                styles.secondaryButton,
-                !vk && styles.disabledButton,
+                styles.searchButton,
+                !account && styles.disabledButton,
               ]}
-              onPress={handleTestProof}
-              disabled={isLoading || !vk}>
-              <Text style={[styles.buttonText, !vk && styles.disabledText]}>
-                Test Circuit
+              onPress={handleSearchAttestation}
+              disabled={!account || isProcessing}>
+              <Text style={[styles.buttonText, !account && styles.disabledText]}>
+                {isSearching ? 'Searching & Validating...' : 'Search & Validate Attestation'}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, styles.clearButton]}
-              onPress={clearLogs}
-              disabled={isLoading}>
-              <Text style={styles.clearButtonText}>Clear Logs</Text>
-            </TouchableOpacity>
+            {rawTransaction ? (
+              <View style={styles.txInfo}>
+                <Text style={styles.txInfoText}>
+                  TX loaded ({rawTransaction.length} chars)
+                </Text>
+              </View>
+            ) : null}
           </View>
 
-          {isLoading && (
-            <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+          {/* Proof Generation */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Step 3: Generate & Verify Proof</Text>
+
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.button, styles.primaryButton]}
+                onPress={handleGenerateVK}
+                disabled={isProcessing}>
+                <Text style={styles.buttonText}>1. Generate VK</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  styles.proofButton,
+                  !vk && styles.disabledButton,
+                ]}
+                onPress={handleGenerateProof}
+                disabled={isProcessing || !vk}>
+                <Text style={[styles.buttonText, !vk && styles.disabledText]}>
+                  2. Generate Proof
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  styles.verifyButton,
+                  !proof && styles.disabledButton,
+                ]}
+                onPress={handleVerifyProof}
+                disabled={isProcessing || !proof}>
+                <Text style={[styles.buttonText, !proof && styles.disabledText]}>
+                  3. Verify (Off-chain)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  styles.onChainButton,
+                  !proof && styles.disabledButton,
+                ]}
+                onPress={handleVerifyProofOnChain}
+                disabled={isProcessing || !proof}>
+                <Text style={[styles.buttonText, !proof && styles.disabledText]}>
+                  4. Verify On-Chain (Base)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Clear Logs */}
+          <TouchableOpacity
+            style={[styles.button, styles.clearButton]}
+            onPress={clearLogs}
+            disabled={isProcessing}>
+            <Text style={styles.clearButtonText}>Clear Logs</Text>
+          </TouchableOpacity>
+
+          {isProcessing && (
+            <ActivityIndicator size="large" color="#0052FF" style={styles.loader} />
           )}
 
           {/* Logs */}
@@ -214,7 +319,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  infoCard: {
+  section: {
     backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginBottom: 16,
@@ -226,21 +331,49 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  infoTitle: {
+  sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
     marginBottom: 8,
   },
-  infoText: {
-    fontSize: 14,
+  sectionDesc: {
+    fontSize: 12,
     color: '#666',
-    lineHeight: 22,
+    marginBottom: 12,
+  },
+  walletButton: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  connectedButton: {
+    backgroundColor: '#34C759',
+  },
+  connectingButton: {
+    backgroundColor: '#FF9500',
+  },
+  disconnectedButton: {
+    backgroundColor: '#3396FF', // WalletConnect blue
+  },
+  walletButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  txInfo: {
+    backgroundColor: '#E8F5E9',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  txInfoText: {
+    color: '#2E7D32',
+    fontSize: 12,
+    textAlign: 'center',
   },
   buttonContainer: {
-    paddingHorizontal: 16,
     gap: 12,
-    marginBottom: 16,
   },
   button: {
     padding: 16,
@@ -248,15 +381,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryButton: {
-    backgroundColor: '#0052FF', // Coinbase blue
+    backgroundColor: '#0052FF',
   },
-  secondaryButton: {
+  searchButton: {
+    backgroundColor: '#0052FF',
+    marginBottom: 0,
+  },
+  proofButton: {
     backgroundColor: '#34C759',
+  },
+  verifyButton: {
+    backgroundColor: '#5856D6',
+  },
+  onChainButton: {
+    backgroundColor: '#0052FF',
   },
   clearButton: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E5E5',
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
   disabledButton: {
     backgroundColor: '#E5E5E5',

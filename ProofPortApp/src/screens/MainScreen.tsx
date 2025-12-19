@@ -40,11 +40,11 @@ export const MainScreen: React.FC<MainScreenProps> = ({navigation}) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, styles.metamaskButton]}
-            onPress={() => navigation.navigate('Metamask')}>
-            <Text style={styles.buttonText}>Metamask</Text>
+            style={[styles.button, styles.walletButton]}
+            onPress={() => navigation.navigate('Wallet')}>
+            <Text style={styles.buttonText}>Wallet</Text>
             <Text style={styles.buttonDescription}>
-              Connect wallet & get address
+              Connect wallet via WalletConnect
             </Text>
           </TouchableOpacity>
         </View>
@@ -95,8 +95,8 @@ const styles = StyleSheet.create({
   coinbaseKycButton: {
     backgroundColor: '#0052FF', // Coinbase blue
   },
-  metamaskButton: {
-    backgroundColor: '#F6851B',
+  walletButton: {
+    backgroundColor: '#3396FF', // WalletConnect blue
   },
   buttonText: {
     fontSize: 20,
