@@ -1,10 +1,21 @@
-import {useState, useCallback} from 'react';
+import {useState, useCallback, useEffect, useRef} from 'react';
+import {Linking, Platform} from 'react-native';
 import {
   useAppKit,
   useAccount,
   useProvider,
+  useAppKitState,
+  useAppKitEventSubscription,
 } from '@reown/appkit-react-native';
 import {ethers} from 'ethers';
+
+// Store URLs for wallet apps
+const WALLET_STORE_URLS = {
+  metamask: {
+    ios: 'https://apps.apple.com/app/metamask/id1438144202',
+    android: 'https://play.google.com/store/apps/details?id=io.metamask',
+  },
+};
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -20,6 +31,7 @@ interface UseWalletConnectReturn {
   signMessage: (message: string) => Promise<string>;
   getProvider: () => Promise<ethers.providers.Web3Provider | null>;
   getSigner: () => Promise<ethers.Signer | null>;
+  openWalletStore: () => Promise<void>;
 }
 
 export const useWalletConnect = (addLog?: (msg: string) => void): UseWalletConnectReturn => {
@@ -34,6 +46,33 @@ export const useWalletConnect = (addLog?: (msg: string) => void): UseWalletConne
     addLog?.(msg);
   }, [addLog]);
 
+  // Track modal state to detect when modal closes
+  const {isOpen: isModalOpen} = useAppKitState();
+  const wasModalOpen = useRef(false);
+
+  // Detect modal close and update connecting state
+  useEffect(() => {
+    if (wasModalOpen.current && !isModalOpen) {
+      // Modal was open and now closed
+      log('Modal closed');
+      setIsConnecting(false);
+
+      // If connected after modal close, clear any errors
+      if (isConnected && address) {
+        log('Connection successful!');
+        setError(null);
+      }
+    }
+    wasModalOpen.current = isModalOpen;
+  }, [isModalOpen, isConnected, address, log]);
+
+  // Subscribe to CONNECT_ERROR events
+  useAppKitEventSubscription('CONNECT_ERROR', useCallback((event) => {
+    log(`Connection error event: ${JSON.stringify(event.data)}`);
+    setIsConnecting(false);
+    setError('Failed to connect wallet');
+  }, [log]));
+
   // chainId from useAccount - may be number or undefined
   const chainId = accountChainId ? Number(accountChainId) : null;
 
@@ -44,7 +83,20 @@ export const useWalletConnect = (addLog?: (msg: string) => void): UseWalletConne
     return 'disconnected';
   };
 
+  const openWalletStore = useCallback(async () => {
+    const storeUrl = Platform.OS === 'ios'
+      ? WALLET_STORE_URLS.metamask.ios
+      : WALLET_STORE_URLS.metamask.android;
+
+    try {
+      await Linking.openURL(storeUrl);
+    } catch (e) {
+      log('Failed to open store URL');
+    }
+  }, [log]);
+
   const connect = useCallback(async () => {
+    // Clear previous error before new attempt
     setError(null);
     setIsConnecting(true);
     try {
@@ -52,12 +104,12 @@ export const useWalletConnect = (addLog?: (msg: string) => void): UseWalletConne
       await open();
       log('Modal opened - waiting for connection...');
       // Modal handles the connection flow
-      // isConnected will update automatically via useAppKitAccount
+      // Errors are caught via useAppKitEvents subscription
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to connect';
       log(`Connect error: ${errorMessage}`);
+      // Error will also be caught by event subscription
       setError(errorMessage);
-    } finally {
       setIsConnecting(false);
     }
   }, [open, log]);
@@ -124,5 +176,6 @@ export const useWalletConnect = (addLog?: (msg: string) => void): UseWalletConne
     signMessage,
     getProvider,
     getSigner,
+    openWalletStore,
   };
 };

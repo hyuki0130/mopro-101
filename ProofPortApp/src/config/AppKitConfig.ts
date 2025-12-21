@@ -18,12 +18,12 @@ console.log('[AppKit] Project ID:', projectId, '| Length:', projectId.length);
 
 // App metadata - following official docs format exactly
 const metadata = {
-  name: 'ProofPort',
+  name: 'zkProofPort',
   description: 'ZK Proof Mobile App',
   url: 'https://zkproofport.com',
   icons: ['https://avatars.githubusercontent.com/u/37784886'],
   redirect: {
-    native: 'proofport://',
+    native: 'zkproofport://',
   },
 };
 

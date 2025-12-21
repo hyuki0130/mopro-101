@@ -1,45 +1,47 @@
 import UIKit
+import Expo
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
 
 @main
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: ExpoAppDelegate {
   var window: UIWindow?
 
   var reactNativeDelegate: ReactNativeDelegate?
   var reactNativeFactory: RCTReactNativeFactory?
 
-  func application(
+  override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
     print("🔵 AppDelegate: didFinishLaunchingWithOptions started")
 
     let delegate = ReactNativeDelegate()
-    let factory = RCTReactNativeFactory(delegate: delegate)
+    let factory = ExpoReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
 
     reactNativeDelegate = delegate
     reactNativeFactory = factory
+    bindReactNativeFactory(factory)
 
     window = UIWindow(frame: UIScreen.main.bounds)
     print("🔵 AppDelegate: Window created with frame: \(UIScreen.main.bounds)")
 
     factory.startReactNative(
-      withModuleName: "ProofPortApp",
+      withModuleName: "zkProofPort",
       in: window,
       launchOptions: launchOptions
     )
 
-    print("🔵 AppDelegate: React Native started with module: ProofPortApp")
+    print("🔵 AppDelegate: React Native started with module: zkProofPort")
     print("🔵 AppDelegate: Window visible: \(window?.isHidden == false)")
 
-    return true
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   // Deep link handling - URL Scheme
-  func application(
+  override func application(
     _ app: UIApplication,
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
@@ -49,7 +51,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   }
 
   // Universal Links handling
-  func application(
+  override func application(
     _ application: UIApplication,
     continue userActivity: NSUserActivity,
     restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
@@ -59,10 +61,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   }
 }
 
-class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
+class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
   override func sourceURL(for bridge: RCTBridge) -> URL? {
     print("🔵 ReactNativeDelegate: sourceURL called")
-    let url = self.bundleURL()
+    let url =    // needed to return the correct URL for expo-dev-client.
+    bridge.bundleURL ?? bundleURL()
     print("🔵 ReactNativeDelegate: sourceURL = \(url?.absoluteString ?? "nil")")
     return url
   }

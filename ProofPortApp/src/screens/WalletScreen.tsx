@@ -37,7 +37,11 @@ export const WalletScreen: React.FC = () => {
     disconnect,
     isConnected,
     formattedAddress,
+    openWalletStore,
   } = useWalletConnect(addLog);
+
+  // Check if error is related to missing wallet app
+  const isWalletNotFoundError = error?.includes('wallet app') || error?.includes('LINKING_ERROR');
 
   const handleConnect = async () => {
     clearLogs();
@@ -118,6 +122,13 @@ export const WalletScreen: React.FC = () => {
           {error && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
+              {isWalletNotFoundError && (
+                <TouchableOpacity
+                  style={styles.installWalletButton}
+                  onPress={openWalletStore}>
+                  <Text style={styles.installWalletText}>Install MetaMask</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -260,6 +271,19 @@ const styles = StyleSheet.create({
     color: '#C62828',
     fontSize: 14,
     textAlign: 'center',
+  },
+  installWalletButton: {
+    marginTop: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#F5841F',
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  installWalletText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   button: {
     paddingHorizontal: 32,

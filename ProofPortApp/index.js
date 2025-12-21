@@ -2,8 +2,10 @@
  * @format
  */
 
-// Crypto polyfills - MUST be first before any WalletConnect imports!
-import 'react-native-get-random-values';
+// Polyfills - MUST be first before any other imports!
+import 'fast-text-encoding'; // TextEncoder/TextDecoder for Privy
+import 'react-native-get-random-values'; // crypto.getRandomValues
+import '@ethersproject/shims'; // ethers.js polyfills
 
 // WalletConnect polyfills - after crypto polyfills
 import '@walletconnect/react-native-compat';
