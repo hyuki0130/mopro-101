@@ -2,7 +2,7 @@ export type RootStackParamList = {
   Main: undefined;
   AgeVerifier: undefined;
   CoinbaseKyc: undefined;
-  Wallet: undefined;
+  PrivyWallet: undefined;
 };
 
 export interface AgeVerifierInputs {

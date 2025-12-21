@@ -17,7 +17,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({navigation}) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>ProofPort</Text>
+        <Text style={styles.title}>zkProofPort</Text>
         <Text style={styles.subtitle}>Select a feature to explore</Text>
 
         <View style={styles.buttonContainer}>
@@ -41,10 +41,10 @@ export const MainScreen: React.FC<MainScreenProps> = ({navigation}) => {
 
           <TouchableOpacity
             style={[styles.button, styles.walletButton]}
-            onPress={() => navigation.navigate('Wallet')}>
-            <Text style={styles.buttonText}>Wallet</Text>
+            onPress={() => navigation.navigate('PrivyWallet')}>
+            <Text style={styles.buttonText}>Connect Wallet</Text>
             <Text style={styles.buttonDescription}>
-              Connect wallet via WalletConnect
+              Link your external wallet
             </Text>
           </TouchableOpacity>
         </View>
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0052FF', // Coinbase blue
   },
   walletButton: {
-    backgroundColor: '#3396FF', // WalletConnect blue
+    backgroundColor: '#6366F1', // Purple
   },
   buttonText: {
     fontSize: 20,
