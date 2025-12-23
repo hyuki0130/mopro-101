@@ -1,28 +1,58 @@
 import {useState, useCallback} from 'react';
+import {ethers} from 'ethers';
 import {
   generateNoirProof,
   verifyNoirProof,
-  getNoirVerificationKey,
+  getNumPublicInputsFromCircuit,
+  parseProofWithPublicInputs,
+  type ProofWithPublicInputs,
 } from 'mopro-ffi';
-import {getAssetPath, arrayBufferToHex, validateInputs} from '../utils';
-import type {ProofState, ProofStatus, AgeVerifierInputs} from '../types';
+import {getAssetPath, arrayBufferToHex, validateInputs, loadVkFromAssets} from '../utils';
+import type {ProofStatus, AgeVerifierInputs} from '../types';
+import type {Step} from '../components';
+
+// Circuit name for assets
+const CIRCUIT_NAME = 'age_verifier';
+
+// On-chain Verifier contract on Sepolia (with public inputs support)
+const VERIFIER_CONTRACT_ADDRESS = '0x33316f0A1F6638AbC8D5a6aCce5a1cF13427A0c9';
+
+// Minimal ABI for HonkVerifier contract (Noir generated)
+const VERIFIER_ABI = [
+  'function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool)',
+];
+
+// Sepolia RPC for read-only calls (using Infura for reliability)
+const SEPOLIA_RPC_URL = 'https://sepolia.infura.io/v3/2fe2d28467784ababcae918bb18b4bf6';
+
+export interface ParsedProofData {
+  proofHex: string;
+  publicInputsHex: string[];
+  numPublicInputs: number;
+}
 
 export interface UseAgeVerifierReturn {
   status: ProofStatus;
   isLoading: boolean;
   vk: ArrayBuffer | null;
   proof: ArrayBuffer | null;
-  generateVK: (addLog: (msg: string) => void) => Promise<void>;
-  generateProof: (
+  parsedProof: ParsedProofData | null;
+  proofSteps: Step[];
+  generateProofWithSteps: (
     inputs: AgeVerifierInputs,
     addLog: (msg: string) => void,
   ) => Promise<void>;
-  verifyProof: (addLog: (msg: string) => void) => Promise<void>;
-  runAll: (
-    inputs: AgeVerifierInputs,
-    addLog: (msg: string) => void,
-  ) => Promise<void>;
+  verifyProofOffChain: (addLog: (msg: string) => void) => Promise<void>;
+  verifyProofOnChain: (addLog: (msg: string) => void) => Promise<void>;
+  resetSteps: () => void;
 }
+
+const INITIAL_PROOF_STEPS: Step[] = [
+  {id: 'vk', label: 'Load Verification Key', status: 'pending'},
+  {id: 'inputs', label: 'Prepare proof inputs', status: 'pending'},
+  {id: 'proof', label: 'Generate ZK proof', status: 'pending'},
+  {id: 'parse', label: 'Parse proof (extract public inputs)', status: 'pending'},
+];
 
 /**
  * Custom hook for managing ZK proof generation and verification
@@ -30,266 +60,174 @@ export interface UseAgeVerifierReturn {
 export const useAgeVerifier = (): UseAgeVerifierReturn => {
   const [status, setStatus] = useState<ProofStatus>('Ready');
   const [isLoading, setIsLoading] = useState(false);
-  const [proofState, setProofState] = useState<ProofState>({
-    vk: null,
-    proof: null,
-  });
+  const [vk, setVk] = useState<ArrayBuffer | null>(null);
+  const [proof, setProof] = useState<ArrayBuffer | null>(null);
+  const [parsedProof, setParsedProof] = useState<ParsedProofData | null>(null);
+  const [proofSteps, setProofSteps] = useState<Step[]>(INITIAL_PROOF_STEPS);
 
-  const generateVK = useCallback(async (addLog: (msg: string) => void) => {
-    setIsLoading(true);
-    setStatus('Generating verification key...');
-    addLog('Starting verification key generation');
-
-    try {
-      const circuitPath = await getAssetPath('age_verifier.json');
-      const srsPath = await getAssetPath('age_verifier.srs');
-
-      addLog(`Circuit path: ${circuitPath}`);
-      addLog(`SRS path: ${srsPath}`);
-
-      const startTime = Date.now();
-      const generatedVk = getNoirVerificationKey(
-        circuitPath,
-        srsPath,
-        false, // onChain: false = Poseidon hash (faster)
-        true, // lowMemoryMode
-      );
-      const elapsed = Date.now() - startTime;
-
-      setProofState(prev => ({...prev, vk: generatedVk}));
-      addLog(`VK generated in ${elapsed}ms`);
-      addLog(`VK size: ${generatedVk.byteLength} bytes`);
-      setStatus('Verification key ready');
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      addLog(`Error: ${errorMessage}`);
-      setStatus('Error generating VK');
-    } finally {
-      setIsLoading(false);
-    }
+  const updateStep = useCallback((stepId: string, updates: Partial<Step>) => {
+    setProofSteps(prev =>
+      prev.map(step => (step.id === stepId ? {...step, ...updates} : step)),
+    );
   }, []);
 
-  const generateProof = useCallback(
+  const resetSteps = useCallback(() => {
+    setProofSteps(INITIAL_PROOF_STEPS);
+    setParsedProof(null);
+  }, []);
+
+  /**
+   * Generate proof with step-by-step progress tracking
+   */
+  const generateProofWithSteps = useCallback(
     async (inputs: AgeVerifierInputs, addLog: (msg: string) => void) => {
-      if (!proofState.vk) {
-        addLog('Please generate verification key first');
-        return;
-      }
-
-      // Validate inputs
-      const validation = validateInputs(
-        inputs.birthYear,
-        inputs.currentYear,
-        inputs.minAge,
-      );
-
-      if (!validation.isValid) {
-        addLog(`Error: ${validation.error}`);
-        setStatus('Invalid input');
-        return;
-      }
-
       setIsLoading(true);
       setStatus('Generating proof...');
-      addLog('Starting proof generation');
-
-      try {
-        const circuitPath = await getAssetPath('age_verifier.json');
-        const srsPath = await getAssetPath('age_verifier.srs');
-        const inputArray = [
-          inputs.birthYear,
-          inputs.currentYear,
-          inputs.minAge,
-        ];
-
-        addLog(
-          `Inputs: birth_year=${inputs.birthYear}, current_year=${inputs.currentYear}, min_age=${inputs.minAge}`,
-        );
-
-        const startTime = Date.now();
-        const generatedProof = generateNoirProof(
-          circuitPath,
-          srsPath,
-          inputArray,
-          false, // onChain
-          proofState.vk,
-          true, // lowMemoryMode
-        );
-        const elapsed = Date.now() - startTime;
-
-        setProofState(prev => ({...prev, proof: generatedProof}));
-        addLog(`Proof generated in ${elapsed}ms`);
-        addLog(`Proof size: ${generatedProof.byteLength} bytes`);
-        addLog(
-          `Proof (first 64 chars): ${arrayBufferToHex(generatedProof).substring(
-            0,
-            64,
-          )}...`,
-        );
-        setStatus('Proof ready');
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        addLog(`Error: ${errorMessage}`);
-        setStatus('Error generating proof');
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [proofState.vk],
-  );
-
-  const verifyProof = useCallback(
-    async (addLog: (msg: string) => void) => {
-      if (!proofState.vk || !proofState.proof) {
-        addLog('Please generate VK and proof first');
-        return;
-      }
-
-      setIsLoading(true);
-      setStatus('Verifying proof...');
-      addLog('Starting proof verification');
-
-      try {
-        const circuitPath = await getAssetPath('age_verifier.json');
-
-        const startTime = Date.now();
-        const isValid = verifyNoirProof(
-          circuitPath,
-          proofState.proof,
-          false, // onChain
-          proofState.vk,
-          true, // lowMemoryMode
-        );
-        const elapsed = Date.now() - startTime;
-
-        addLog(`Verification completed in ${elapsed}ms`);
-        addLog(`Result: ${isValid ? 'VALID' : 'INVALID'}`);
-        setStatus(isValid ? 'Proof verified!' : 'Proof invalid');
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        addLog(`Error: ${errorMessage}`);
-        setStatus('Error verifying proof');
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [proofState.vk, proofState.proof],
-  );
-
-  const runAll = useCallback(
-    async (inputs: AgeVerifierInputs, addLog: (msg: string) => void) => {
-      addLog('=== Running Full Flow ===');
-
-      // Generate VK
-      setIsLoading(true);
-      setStatus('Generating verification key...');
-      addLog('Starting verification key generation');
+      resetSteps();
+      addLog('=== Starting Proof Generation ===');
 
       let currentVk: ArrayBuffer | null = null;
-
-      try {
-        const circuitPath = await getAssetPath('age_verifier.json');
-        const srsPath = await getAssetPath('age_verifier.srs');
-
-        addLog(`Circuit path: ${circuitPath}`);
-        addLog(`SRS path: ${srsPath}`);
-
-        const startTime = Date.now();
-        currentVk = getNoirVerificationKey(circuitPath, srsPath, false, true);
-        const elapsed = Date.now() - startTime;
-
-        setProofState(prev => ({...prev, vk: currentVk}));
-        addLog(`VK generated in ${elapsed}ms`);
-        addLog(`VK size: ${currentVk!.byteLength} bytes`);
-        setStatus('Verification key ready');
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        addLog(`Error: ${errorMessage}`);
-        setStatus('Error generating VK');
-        setIsLoading(false);
-        return;
-      }
-
-      // Generate Proof
-      const validation = validateInputs(
-        inputs.birthYear,
-        inputs.currentYear,
-        inputs.minAge,
-      );
-
-      if (!validation.isValid) {
-        addLog(`Error: ${validation.error}`);
-        setStatus('Invalid input');
-        setIsLoading(false);
-        return;
-      }
-
-      setStatus('Generating proof...');
-      addLog('Starting proof generation');
-
       let currentProof: ArrayBuffer | null = null;
 
       try {
-        const circuitPath = await getAssetPath('age_verifier.json');
-        const srsPath = await getAssetPath('age_verifier.srs');
-        const inputArray = [
+        // Step 1: Load VK
+        updateStep('vk', {status: 'in_progress'});
+        addLog('Step 1: Loading verification key...');
+
+        const vkStartTime = Date.now();
+        currentVk = await loadVkFromAssets(CIRCUIT_NAME, addLog);
+        const vkElapsed = Date.now() - vkStartTime;
+
+        setVk(currentVk);
+        updateStep('vk', {
+          status: 'completed',
+          detail: `${currentVk.byteLength} bytes (${vkElapsed}ms)`,
+        });
+        addLog(`VK loaded: ${currentVk.byteLength} bytes (${vkElapsed}ms)`);
+
+        // Step 2: Prepare inputs
+        updateStep('inputs', {status: 'in_progress'});
+        addLog('Step 2: Preparing proof inputs...');
+
+        const validation = validateInputs(
           inputs.birthYear,
           inputs.currentYear,
           inputs.minAge,
-        ];
-
-        addLog(
-          `Inputs: birth_year=${inputs.birthYear}, current_year=${inputs.currentYear}, min_age=${inputs.minAge}`,
         );
 
-        const startTime = Date.now();
+        if (!validation.isValid) {
+          throw new Error(validation.error);
+        }
+
+        const inputArray = [inputs.birthYear, inputs.currentYear, inputs.minAge];
+        updateStep('inputs', {
+          status: 'completed',
+          detail: `birth=${inputs.birthYear}, year=${inputs.currentYear}, min=${inputs.minAge}`,
+        });
+        addLog(`Inputs: birth_year=${inputs.birthYear}, current_year=${inputs.currentYear}, min_age=${inputs.minAge}`);
+
+        // Step 3: Generate proof
+        updateStep('proof', {status: 'in_progress'});
+        addLog('Step 3: Generating ZK proof...');
+
+        const circuitPath = await getAssetPath(`${CIRCUIT_NAME}.json`);
+        const srsPath = await getAssetPath(`${CIRCUIT_NAME}.srs`);
+
+        const proofStartTime = Date.now();
         currentProof = generateNoirProof(
           circuitPath,
           srsPath,
           inputArray,
-          false,
-          currentVk!,
-          true,
+          true, // onChain: true = Keccak hash (for Solidity verification)
+          currentVk,
+          true, // lowMemoryMode
         );
-        const elapsed = Date.now() - startTime;
+        const proofElapsed = Date.now() - proofStartTime;
 
-        setProofState(prev => ({...prev, proof: currentProof}));
-        addLog(`Proof generated in ${elapsed}ms`);
-        addLog(`Proof size: ${currentProof!.byteLength} bytes`);
-        addLog(
-          `Proof (first 64 chars): ${arrayBufferToHex(currentProof!).substring(
-            0,
-            64,
-          )}...`,
+        setProof(currentProof);
+        updateStep('proof', {
+          status: 'completed',
+          detail: `${currentProof!.byteLength} bytes (${proofElapsed}ms)`,
+        });
+        addLog(`Proof generated: ${currentProof!.byteLength} bytes (${proofElapsed}ms)`);
+
+        // Step 4: Parse proof
+        updateStep('parse', {status: 'in_progress'});
+        addLog('Step 4: Parsing proof...');
+
+        const numPublicInputs = getNumPublicInputsFromCircuit(circuitPath);
+        const parsed: ProofWithPublicInputs = parseProofWithPublicInputs(
+          currentProof,
+          numPublicInputs,
         );
+
+        const proofHex = arrayBufferToHex(parsed.proof);
+        const publicInputsHex: string[] = parsed.publicInputs.map(
+          (pi: ArrayBuffer) => '0x' + arrayBufferToHex(pi),
+        );
+
+        const parsedData: ParsedProofData = {
+          proofHex: '0x' + proofHex,
+          publicInputsHex,
+          numPublicInputs,
+        };
+        setParsedProof(parsedData);
+
+        updateStep('parse', {
+          status: 'completed',
+          detail: `proof.hex: ${proofHex.substring(0, 16)}... | ${numPublicInputs} public inputs`,
+        });
+
+        addLog(`Parsed proof size: ${parsed.proof.byteLength} bytes`);
+        addLog(`Number of public inputs: ${numPublicInputs}`);
+        publicInputsHex.forEach((pi, i) => {
+          addLog(`  [${i}]: ${pi}`);
+        });
+
         setStatus('Proof ready');
+        addLog('=== Proof Generation Complete ===');
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         addLog(`Error: ${errorMessage}`);
         setStatus('Error generating proof');
+
+        // Mark current step as error
+        setProofSteps(prev =>
+          prev.map(step =>
+            step.status === 'in_progress' ? {...step, status: 'error', detail: errorMessage} : step,
+          ),
+        );
+      } finally {
         setIsLoading(false);
+      }
+    },
+    [updateStep, resetSteps],
+  );
+
+  /**
+   * Verify proof off-chain using mopro
+   */
+  const verifyProofOffChain = useCallback(
+    async (addLog: (msg: string) => void) => {
+      if (!vk || !proof) {
+        addLog('Please generate proof first');
         return;
       }
 
-      // Verify Proof
+      setIsLoading(true);
       setStatus('Verifying proof...');
-      addLog('Starting proof verification');
+      addLog('=== Starting Off-Chain Verification ===');
 
       try {
-        const circuitPath = await getAssetPath('age_verifier.json');
+        const circuitPath = await getAssetPath(`${CIRCUIT_NAME}.json`);
 
         const startTime = Date.now();
         const isValid = verifyNoirProof(
           circuitPath,
-          currentProof!,
-          false,
-          currentVk!,
-          true,
+          proof,
+          true, // onChain: true = Keccak hash
+          vk,
+          true, // lowMemoryMode
         );
         const elapsed = Date.now() - startTime;
 
@@ -297,26 +235,104 @@ export const useAgeVerifier = (): UseAgeVerifierReturn => {
         addLog(`Result: ${isValid ? 'VALID' : 'INVALID'}`);
         setStatus(isValid ? 'Proof verified!' : 'Proof invalid');
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         addLog(`Error: ${errorMessage}`);
         setStatus('Error verifying proof');
       } finally {
         setIsLoading(false);
-        addLog('=== Flow Complete ===');
       }
     },
-    [],
+    [vk, proof],
+  );
+
+  /**
+   * Verify proof on-chain using the deployed Verifier contract on Sepolia
+   */
+  const verifyProofOnChain = useCallback(
+    async (addLog: (msg: string) => void) => {
+      if (!parsedProof) {
+        addLog('Please generate proof first');
+        return;
+      }
+
+      setIsLoading(true);
+      setStatus('Verifying proof on-chain...');
+      addLog('=== Starting On-Chain Verification ===');
+      addLog(`Verifier contract: ${VERIFIER_CONTRACT_ADDRESS}`);
+      addLog(`Chain: Sepolia Testnet (11155111)`);
+
+      try {
+        // Create provider for Sepolia chain
+        const provider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC_URL);
+        addLog('Connected to Sepolia RPC');
+
+        // Create contract instance
+        const verifierContract = new ethers.Contract(
+          VERIFIER_CONTRACT_ADDRESS,
+          VERIFIER_ABI,
+          provider,
+        );
+
+        addLog(`Proof hex (first 40 chars): ${parsedProof.proofHex.substring(0, 42)}...`);
+        addLog('Public inputs (bytes32[]):');
+        parsedProof.publicInputsHex.forEach((pi, i) => {
+          addLog(`  [${i}]: ${pi}`);
+        });
+
+        // Call verify function (view function, no gas needed)
+        addLog('Calling verifier contract...');
+        const startTime = Date.now();
+
+        const isValid = await verifierContract.verify(
+          parsedProof.proofHex,
+          parsedProof.publicInputsHex,
+        );
+
+        const elapsed = Date.now() - startTime;
+        addLog(`On-chain verification completed in ${elapsed}ms`);
+        addLog(`Result: ${isValid ? 'VALID' : 'INVALID'}`);
+
+        // Log transaction info (for view function, we can show the call info)
+        addLog('--- Transaction Info ---');
+        addLog(`Contract: ${VERIFIER_CONTRACT_ADDRESS}`);
+        addLog(`Method: verify(bytes, bytes32[])`);
+        addLog(`Note: This is a view function call (no gas spent)`);
+
+        if (isValid) {
+          addLog('Proof verified on Sepolia blockchain!');
+          setStatus('Proof verified on-chain!');
+        } else {
+          addLog('Proof rejected by on-chain verifier');
+          setStatus('Proof invalid (on-chain)');
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        addLog(`On-chain verification error: ${errorMessage}`);
+
+        if (errorMessage.includes('call revert')) {
+          addLog('Contract call reverted - proof may be invalid or wrong format');
+        } else if (errorMessage.includes('network')) {
+          addLog('Network error - check internet connection');
+        }
+
+        setStatus('Error: on-chain verification failed');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [parsedProof],
   );
 
   return {
     status,
     isLoading,
-    vk: proofState.vk,
-    proof: proofState.proof,
-    generateVK,
-    generateProof,
-    verifyProof,
-    runAll,
+    vk,
+    proof,
+    parsedProof,
+    proofSteps,
+    generateProofWithSteps,
+    verifyProofOffChain,
+    verifyProofOnChain,
+    resetSteps,
   };
 };

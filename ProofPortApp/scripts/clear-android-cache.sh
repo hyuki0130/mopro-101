@@ -1,5 +1,5 @@
 #!/bin/bash
-# Clear Android build cache and mopro poly-mmap cache files
+# Clear Android build cache, emulator storage, and mopro poly-mmap cache files
 # Run this before building if you encounter "insufficient storage" errors
 
 echo "=== Clearing Android Build Cache ==="
@@ -9,6 +9,41 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo "Project directory: $PROJECT_DIR"
+
+# =============================================================================
+# Clear Android Emulator Storage (for INSTALL_FAILED_INSUFFICIENT_STORAGE)
+# =============================================================================
+echo ""
+echo "=== Clearing Android Emulator Storage ==="
+
+if command -v adb &> /dev/null; then
+    # Check if device is connected
+    if adb get-state 1>/dev/null 2>&1; then
+        echo "Device connected, clearing storage..."
+
+        # Uninstall app to free space
+        echo "Uninstalling app..."
+        adb uninstall com.zkproofport.app 2>/dev/null && echo "App uninstalled" || echo "App not installed"
+
+        # Remove old app versions
+        adb uninstall com.ageverifierapp 2>/dev/null || true
+
+        # Clear download provider cache
+        adb shell pm clear com.android.providers.downloads 2>/dev/null || true
+
+        # Clear temp files
+        adb shell rm -rf /data/local/tmp/* 2>/dev/null || true
+
+        # Show storage status
+        echo ""
+        echo "Emulator storage status:"
+        adb shell df -h /data 2>/dev/null | grep -E "Filesystem|data"
+    else
+        echo "No Android device/emulator connected, skipping emulator cleanup"
+    fi
+else
+    echo "adb not found, skipping emulator cleanup"
+fi
 
 # Clear Gradle build cache
 echo "Clearing Gradle build cache..."

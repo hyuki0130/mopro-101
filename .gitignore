@@ -118,9 +118,10 @@ coverage/
 # ====================
 # Mopro Bindings Build
 # ====================
-# Compiled libraries
+# Compiled libraries (large binary files - rebuild with ./scripts/mopro_build.sh)
 *.xcframework/
-lib/
+*.a
+ProofPortApp/mopro_bindings/android/src/main/jniLibs/
 
 # ====================
 # Temporary Files
@@ -128,3 +129,17 @@ lib/
 *.log
 *.tmp
 *.temp
+
+# ====================
+# Environment / Secrets
+# ====================
+.env
+.env.local
+.env.*.local
+
+# ====================
+# Foundry
+# ====================
+out/
+cache/
+broadcast/

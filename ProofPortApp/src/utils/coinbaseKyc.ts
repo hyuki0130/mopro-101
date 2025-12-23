@@ -370,3 +370,4 @@ export function flattenCircuitInputs(inputs: CoinbaseKycCircuitInputs): string[]
     inputs.merkle_proof_depth,
   ];
 }
+

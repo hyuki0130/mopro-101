@@ -84,18 +84,9 @@ find "$CIRCUITS_DIR" -name "Nargo.toml" -type f | while read nargo_file; do
         continue
     fi
 
-    # 2. Verification Key 생성
-    echo -e "${YELLOW}[2/6]${NC} Generating verification key (Keccak)..."
-    if bb write_vk -b "$CIRCUIT_JSON" -o ./target/vk --oracle_hash keccak 2>&1; then
-        echo -e "${GREEN}  ✓ VK generated${NC}"
-    else
-        echo -e "${RED}  ✗ VK generation failed${NC}"
-        continue
-    fi
-
-    # 3. Witness 생성 (Prover.toml 필요)
+    # 2. Witness 생성 (Prover.toml 필요)
     if [ -f "Prover.toml" ]; then
-        echo -e "${YELLOW}[3/6]${NC} Generating witness..."
+        echo -e "${YELLOW}[2/5]${NC} Generating witness..."
         if nargo execute witness 2>&1; then
             echo -e "${GREEN}  ✓ Witness generated${NC}"
         else
@@ -103,27 +94,28 @@ find "$CIRCUITS_DIR" -name "Nargo.toml" -type f | while read nargo_file; do
             continue
         fi
 
-        # 4. Proof 생성
-        echo -e "${YELLOW}[4/6]${NC} Generating proof (Keccak)..."
+        # 3. Proof + VK 생성 (공식 데모 방식: --write_vk로 한 번에)
+        echo -e "${YELLOW}[3/5]${NC} Generating proof + VK (Keccak)..."
         if bb prove \
             -b "$CIRCUIT_JSON" \
             -w ./target/witness.gz \
-            -k ./target/vk/vk \
             -o ./target/proof \
-            --oracle_hash keccak 2>&1; then
+            --oracle_hash keccak \
+            --output_format bytes_and_fields \
+            --write_vk 2>&1; then
             PROOF_SIZE=$(wc -c < ./target/proof/proof 2>/dev/null | tr -d ' ')
-            echo -e "${GREEN}  ✓ Proof generated ($PROOF_SIZE bytes)${NC}"
+            echo -e "${GREEN}  ✓ Proof + VK generated ($PROOF_SIZE bytes)${NC}"
         else
             echo -e "${RED}  ✗ Proof generation failed${NC}"
             continue
         fi
 
-        # 5. Proof 검증
-        echo -e "${YELLOW}[5/6]${NC} Verifying proof..."
-        cp ./target/proof/public_inputs ./target/public_inputs
+        # 4. Proof 검증
+        echo -e "${YELLOW}[4/5]${NC} Verifying proof..."
         if bb verify \
             -p ./target/proof/proof \
-            -k ./target/vk/vk \
+            -k ./target/proof/vk \
+            -i ./target/proof/public_inputs \
             --oracle_hash keccak 2>&1; then
             echo -e "${GREEN}  ✓ Proof verified successfully${NC}"
         else
@@ -131,17 +123,26 @@ find "$CIRCUITS_DIR" -name "Nargo.toml" -type f | while read nargo_file; do
             continue
         fi
     else
-        echo -e "${YELLOW}[3/6]${NC} Skipping witness (no Prover.toml)"
-        echo -e "${YELLOW}[4/6]${NC} Skipping proof generation"
-        echo -e "${YELLOW}[5/6]${NC} Skipping verification"
+        echo -e "${YELLOW}[2/5]${NC} Skipping witness (no Prover.toml)"
+        echo -e "${YELLOW}[3/5]${NC} Skipping proof generation"
+        echo -e "${YELLOW}[4/5]${NC} Skipping verification"
+
+        # VK만 생성 (Prover.toml 없을 때)
+        echo -e "${YELLOW}[3/5]${NC} Generating VK only (Keccak)..."
+        if bb write_vk -b "$CIRCUIT_JSON" -o ./target/proof --oracle_hash keccak 2>&1; then
+            echo -e "${GREEN}  ✓ VK generated${NC}"
+        else
+            echo -e "${RED}  ✗ VK generation failed${NC}"
+            continue
+        fi
     fi
 
-    # 6. Solidity Verifier 생성
-    echo -e "${YELLOW}[6/6]${NC} Generating Solidity verifier..."
+    # 5. Solidity Verifier 생성
+    echo -e "${YELLOW}[5/5]${NC} Generating Solidity verifier..."
     # snake_case를 PascalCase로 변환 (age_verifier -> AgeVerifier, zk_coinbase_attestor -> ZkCoinbaseAttestor)
     VERIFIER_NAME=$(echo "$PACKAGE_NAME" | sed 's/_/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1' | tr -d ' ')
     VERIFIER_FILE="$CONTRACTS_DIR/${VERIFIER_NAME}.sol"
-    if bb write_solidity_verifier -k ./target/vk/vk -o "$VERIFIER_FILE" 2>&1; then
+    if bb write_solidity_verifier -k ./target/proof/vk -o "$VERIFIER_FILE" 2>&1; then
         VERIFIER_LINES=$(wc -l < "$VERIFIER_FILE" | tr -d ' ')
         echo -e "${GREEN}  ✓ Verifier generated: ${VERIFIER_NAME}.sol ($VERIFIER_LINES lines)${NC}"
     else

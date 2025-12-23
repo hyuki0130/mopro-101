@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
 } from 'react-native';
-import {LogViewer} from '../components';
+import {LogViewer, StepProgress} from '../components';
 import {useLogs, useCoinbaseKyc, usePrivyWallet} from '../hooks';
 import {findAttestationTransaction} from '../utils';
 
@@ -21,12 +21,11 @@ export const CoinbaseKycScreen: React.FC = () => {
   const {
     status,
     isLoading,
-    proof,
-    generateVK,
-    generateProofWithSignature,
-    verifyProof,
+    parsedProof,
+    proofSteps,
+    generateProofWithSteps,
+    verifyProofOffChain,
     verifyProofOnChain,
-    validateTransaction,
   } = useCoinbaseKyc();
 
   // Get wallet connection from Privy hook
@@ -43,18 +42,19 @@ export const CoinbaseKycScreen: React.FC = () => {
     getProvider,
   } = usePrivyWallet(addLog);
 
-  // Combined: Search Attestation → Generate VK → Generate Proof
+  // Combined: Search Attestation → Generate Proof (with steps)
   const handleGenerateProof = useCallback(async () => {
     if (!account) {
       addLog('Please connect wallet first');
       return;
     }
 
+    clearLogs();
     setIsSearching(true);
 
     try {
-      // Step 1: Search for attestation
-      addLog('=== Step 1: Searching for Coinbase Attestation ===');
+      // Step 0: Search for attestation (before proof generation steps)
+      addLog('=== Searching for Coinbase Attestation ===');
       const result = await findAttestationTransaction(account, addLog);
 
       if (!result) {
@@ -66,20 +66,7 @@ export const CoinbaseKycScreen: React.FC = () => {
       addLog('Attestation transaction found!');
       addLog(`TX length: ${result.rawTransaction.length} characters`);
 
-      // Validate transaction
-      addLog('--- Validating transaction ---');
-      const isValid = validateTransaction(result.rawTransaction, account, addLog);
-      if (!isValid) {
-        addLog('Transaction validation failed');
-        return;
-      }
-
-      // Step 2: Generate VK
-      addLog('=== Step 2: Generating Verification Key ===');
-      await generateVK(addLog);
-
-      // Step 3: Generate Proof
-      addLog('=== Step 3: Generating Proof ===');
+      // Get provider for signing
       const provider = await getProvider();
       if (!provider) {
         addLog('No wallet provider available');
@@ -92,7 +79,8 @@ export const CoinbaseKycScreen: React.FC = () => {
         },
       };
 
-      await generateProofWithSignature(
+      // Generate proof with step tracking
+      await generateProofWithSteps(
         {
           userAddress: account,
           rawTransaction: result.rawTransaction,
@@ -108,13 +96,13 @@ export const CoinbaseKycScreen: React.FC = () => {
     } finally {
       setIsSearching(false);
     }
-  }, [account, addLog, validateTransaction, generateVK, getProvider, generateProofWithSignature]);
+  }, [account, addLog, clearLogs, getProvider, generateProofWithSteps]);
 
-  const handleVerifyProof = useCallback(() => {
-    verifyProof(addLog);
-  }, [verifyProof, addLog]);
+  const handleVerifyOffChain = useCallback(() => {
+    verifyProofOffChain(addLog);
+  }, [verifyProofOffChain, addLog]);
 
-  const handleVerifyProofOnChain = useCallback(() => {
+  const handleVerifyOnChain = useCallback(() => {
     verifyProofOnChain(addLog);
   }, [verifyProofOnChain, addLog]);
 
@@ -144,7 +132,6 @@ export const CoinbaseKycScreen: React.FC = () => {
     if (isAuthenticated) {
       disconnectWallet();
     } else if (isWalletConnected) {
-      // Wallet connected but not authenticated - sign in with SIWE
       signInWithWallet();
     } else {
       connectWallet();
@@ -152,6 +139,8 @@ export const CoinbaseKycScreen: React.FC = () => {
   };
 
   const isProcessing = isLoading || isSearching;
+  const hasProof = !!parsedProof;
+  const hasAnyStepStarted = proofSteps.some(s => s.status !== 'pending');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -172,7 +161,7 @@ export const CoinbaseKycScreen: React.FC = () => {
 
           {/* Wallet Connection */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Step 1: Connect Wallet</Text>
+            <Text style={styles.sectionTitle}>Wallet Connection</Text>
             <TouchableOpacity
               style={[styles.walletButton, getWalletButtonStyle()]}
               onPress={handleWalletPress}
@@ -181,68 +170,67 @@ export const CoinbaseKycScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Proof Generation */}
+          {/* Main Actions */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Step 2: Generate Proof</Text>
-            <Text style={styles.sectionDesc}>
-              Search attestation, generate VK & proof in one step
-            </Text>
+            <Text style={styles.sectionTitle}>Actions</Text>
 
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  styles.proofButton,
-                  !isWalletConnected && styles.disabledButton,
-                ]}
-                onPress={handleGenerateProof}
-                disabled={isProcessing || !isWalletConnected}>
-                <Text style={[styles.buttonText, !isWalletConnected && styles.disabledText]}>
-                  {isSearching ? 'Processing...' : 'Generate Proof'}
+            {/* Button 1: Generate Proof */}
+            <TouchableOpacity
+              style={[
+                styles.button,
+                styles.generateButton,
+                (!isWalletConnected || isProcessing) && styles.disabledButton,
+              ]}
+              onPress={handleGenerateProof}
+              disabled={isProcessing || !isWalletConnected}>
+              <Text style={[styles.buttonText, !isWalletConnected && styles.disabledText]}>
+                {isSearching ? 'Searching Attestation...' : isLoading ? 'Generating...' : '1. Generate Proof'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Attestation Info */}
+            {rawTransaction ? (
+              <View style={styles.txInfo}>
+                <Text style={styles.txInfoText}>
+                  Attestation loaded ({rawTransaction.length} chars)
                 </Text>
-              </TouchableOpacity>
+              </View>
+            ) : null}
 
-              {rawTransaction ? (
-                <View style={styles.txInfo}>
-                  <Text style={styles.txInfoText}>
-                    Attestation loaded ({rawTransaction.length} chars)
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
+            {/* Step Progress (shown when generating) */}
+            {hasAnyStepStarted && (
+              <View style={styles.stepProgressContainer}>
+                <StepProgress steps={proofSteps} />
+              </View>
+            )}
 
-          {/* Verify Proof */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Step 3: Verify Proof</Text>
+            {/* Button 2: Off-chain Verification */}
+            <TouchableOpacity
+              style={[
+                styles.button,
+                styles.verifyButton,
+                (!hasProof || isProcessing) && styles.disabledButton,
+              ]}
+              onPress={handleVerifyOffChain}
+              disabled={!hasProof || isProcessing}>
+              <Text style={[styles.buttonText, (!hasProof || isProcessing) && styles.disabledText]}>
+                2. Verify Off-Chain
+              </Text>
+            </TouchableOpacity>
 
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  styles.verifyButton,
-                  !proof && styles.disabledButton,
-                ]}
-                onPress={handleVerifyProof}
-                disabled={isProcessing || !proof}>
-                <Text style={[styles.buttonText, !proof && styles.disabledText]}>
-                  Verify (Off-chain)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  styles.onChainButton,
-                  !proof && styles.disabledButton,
-                ]}
-                onPress={handleVerifyProofOnChain}
-                disabled={isProcessing || !proof}>
-                <Text style={[styles.buttonText, !proof && styles.disabledText]}>
-                  Verify On-Chain (Base)
-                </Text>
-              </TouchableOpacity>
-            </View>
+            {/* Button 3: On-chain Verification */}
+            <TouchableOpacity
+              style={[
+                styles.button,
+                styles.onChainButton,
+                (!hasProof || isProcessing) && styles.disabledButton,
+              ]}
+              onPress={handleVerifyOnChain}
+              disabled={!hasProof || isProcessing}>
+              <Text style={[styles.onChainButtonText, (!hasProof || isProcessing) && styles.disabledText]}>
+                3. Verify On-Chain (Sepolia)
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Clear Logs */}
@@ -318,12 +306,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
-  },
-  sectionDesc: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   walletButton: {
     padding: 16,
@@ -334,13 +317,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#34C759',
   },
   walletConnectedButton: {
-    backgroundColor: '#6366F1', // Privy purple - wallet connected, needs SIWE
+    backgroundColor: '#6366F1',
   },
   connectingButton: {
     backgroundColor: '#FF9500',
   },
   disconnectedButton: {
-    backgroundColor: '#6366F1', // Privy purple
+    backgroundColor: '#6366F1',
   },
   walletButtonText: {
     color: '#FFFFFF',
@@ -358,22 +341,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
   },
-  buttonContainer: {
-    gap: 12,
-  },
   button: {
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    marginBottom: 12,
   },
-  proofButton: {
-    backgroundColor: '#34C759',
+  generateButton: {
+    backgroundColor: '#0052FF',
   },
   verifyButton: {
     backgroundColor: '#5856D6',
   },
   onChainButton: {
-    backgroundColor: '#0052FF',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#34C759',
   },
   clearButton: {
     backgroundColor: '#FFFFFF',
@@ -384,9 +367,15 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     backgroundColor: '#E5E5E5',
+    borderColor: '#E5E5E5',
   },
   buttonText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  onChainButtonText: {
+    color: '#34C759',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -397,6 +386,11 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: '#999',
+  },
+  stepProgressContainer: {
+    backgroundColor: '#F8F8F8',
+    borderRadius: 8,
+    marginBottom: 12,
   },
   loader: {
     marginVertical: 10,

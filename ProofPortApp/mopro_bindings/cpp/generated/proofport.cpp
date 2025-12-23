@@ -133,6 +133,11 @@ extern "C" {
     uint64_t callback_data, 
     UniffiForeignFutureStructVoid result
     );
+    RustBuffer uniffi_proofport_fn_func_combine_proof_and_public_inputs(
+        RustBuffer proof, 
+        RustBuffer public_inputs, 
+        RustCallStatus *uniffi_out_err
+    );
     RustBuffer uniffi_proofport_fn_func_generate_circom_proof(
         RustBuffer _zkey_path, 
         RustBuffer _circuit_inputs, 
@@ -161,7 +166,16 @@ extern "C" {
         int8_t low_memory_mode, 
         RustCallStatus *uniffi_out_err
     );
+    uint32_t uniffi_proofport_fn_func_get_num_public_inputs_from_circuit(
+        RustBuffer circuit_path, 
+        RustCallStatus *uniffi_out_err
+    );
     RustBuffer uniffi_proofport_fn_func_mopro_hello_world(RustCallStatus *uniffi_out_err
+    );
+    RustBuffer uniffi_proofport_fn_func_parse_proof_with_public_inputs(
+        RustBuffer proof, 
+        uint32_t num_public_inputs, 
+        RustCallStatus *uniffi_out_err
     );
     int8_t uniffi_proofport_fn_func_verify_circom_proof(
         RustBuffer _zkey_path, 
@@ -396,6 +410,8 @@ extern "C" {
         /*handle*/ uint64_t handle, 
         RustCallStatus *uniffi_out_err
     );
+    uint16_t uniffi_proofport_checksum_func_combine_proof_and_public_inputs(
+    );
     uint16_t uniffi_proofport_checksum_func_generate_circom_proof(
     );
     uint16_t uniffi_proofport_checksum_func_generate_halo2_proof(
@@ -404,7 +420,11 @@ extern "C" {
     );
     uint16_t uniffi_proofport_checksum_func_get_noir_verification_key(
     );
+    uint16_t uniffi_proofport_checksum_func_get_num_public_inputs_from_circuit(
+    );
     uint16_t uniffi_proofport_checksum_func_mopro_hello_world(
+    );
+    uint16_t uniffi_proofport_checksum_func_parse_proof_with_public_inputs(
     );
     uint16_t uniffi_proofport_checksum_func_verify_circom_proof(
     );
@@ -1956,6 +1976,14 @@ NativeProofport::NativeProofport(
             return this->cpp_uniffi_internal_fn_func_ffi__arraybuffer_to_string(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_proofport_fn_func_combine_proof_and_public_inputs"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_proofport_fn_func_combine_proof_and_public_inputs"),
+        2,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_proofport_fn_func_combine_proof_and_public_inputs(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_proofport_fn_func_generate_circom_proof"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_proofport_fn_func_generate_circom_proof"),
@@ -1988,12 +2016,28 @@ NativeProofport::NativeProofport(
             return this->cpp_uniffi_proofport_fn_func_get_noir_verification_key(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_proofport_fn_func_get_num_public_inputs_from_circuit"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_proofport_fn_func_get_num_public_inputs_from_circuit"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_proofport_fn_func_get_num_public_inputs_from_circuit(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_proofport_fn_func_mopro_hello_world"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_proofport_fn_func_mopro_hello_world"),
         0,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
             return this->cpp_uniffi_proofport_fn_func_mopro_hello_world(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_proofport_fn_func_parse_proof_with_public_inputs"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_proofport_fn_func_parse_proof_with_public_inputs"),
+        2,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_proofport_fn_func_parse_proof_with_public_inputs(rt, thisVal, args, count);
         }
     );
     props["ubrn_uniffi_proofport_fn_func_verify_circom_proof"] = jsi::Function::createFromHostFunction(
@@ -2018,6 +2062,14 @@ NativeProofport::NativeProofport(
         5,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
             return this->cpp_uniffi_proofport_fn_func_verify_noir_proof(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_proofport_checksum_func_combine_proof_and_public_inputs"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_proofport_checksum_func_combine_proof_and_public_inputs"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_proofport_checksum_func_combine_proof_and_public_inputs(rt, thisVal, args, count);
         }
     );
     props["ubrn_uniffi_proofport_checksum_func_generate_circom_proof"] = jsi::Function::createFromHostFunction(
@@ -2052,12 +2104,28 @@ NativeProofport::NativeProofport(
             return this->cpp_uniffi_proofport_checksum_func_get_noir_verification_key(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_proofport_checksum_func_get_num_public_inputs_from_circuit"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_proofport_checksum_func_get_num_public_inputs_from_circuit"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_proofport_checksum_func_get_num_public_inputs_from_circuit(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_proofport_checksum_func_mopro_hello_world"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_proofport_checksum_func_mopro_hello_world"),
         0,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
             return this->cpp_uniffi_proofport_checksum_func_mopro_hello_world(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_proofport_checksum_func_parse_proof_with_public_inputs"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_proofport_checksum_func_parse_proof_with_public_inputs"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_proofport_checksum_func_parse_proof_with_public_inputs(rt, thisVal, args, count);
         }
     );
     props["ubrn_uniffi_proofport_checksum_func_verify_circom_proof"] = jsi::Function::createFromHostFunction(
@@ -2147,6 +2215,16 @@ jsi::Value NativeProofport::cpp_uniffi_internal_fn_func_ffi__arraybuffer_to_stri
 }
 
 // Methods calling directly into the uniffi generated C API of the Rust crate.
+jsi::Value NativeProofport::cpp_uniffi_proofport_fn_func_combine_proof_and_public_inputs(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::proofport::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_proofport_fn_func_combine_proof_and_public_inputs(uniffi::proofport::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[0]), uniffi::proofport::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), 
+            &status
+        );
+        uniffi::proofport::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::proofport::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
 jsi::Value NativeProofport::cpp_uniffi_proofport_fn_func_generate_circom_proof(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::proofport::Bridging<RustCallStatus>::rustSuccess(rt);
         auto value = uniffi_proofport_fn_func_generate_circom_proof(uniffi::proofport::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[0]), uniffi::proofport::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), uniffi::proofport::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[2]), 
@@ -2187,9 +2265,29 @@ jsi::Value NativeProofport::cpp_uniffi_proofport_fn_func_get_noir_verification_k
         
         return uniffi::proofport::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
 }
+jsi::Value NativeProofport::cpp_uniffi_proofport_fn_func_get_num_public_inputs_from_circuit(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::proofport::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_proofport_fn_func_get_num_public_inputs_from_circuit(uniffi::proofport::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::proofport::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging<uint32_t>::toJs(rt, callInvoker, value);
+}
 jsi::Value NativeProofport::cpp_uniffi_proofport_fn_func_mopro_hello_world(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::proofport::Bridging<RustCallStatus>::rustSuccess(rt);
         auto value = uniffi_proofport_fn_func_mopro_hello_world(&status
+        );
+        uniffi::proofport::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::proofport::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeProofport::cpp_uniffi_proofport_fn_func_parse_proof_with_public_inputs(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::proofport::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_proofport_fn_func_parse_proof_with_public_inputs(uniffi::proofport::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[0]), uniffi_jsi::Bridging<uint32_t>::fromJs(rt, callInvoker, args[1]), 
+            &status
         );
         uniffi::proofport::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
 
@@ -2226,6 +2324,13 @@ jsi::Value NativeProofport::cpp_uniffi_proofport_fn_func_verify_noir_proof(jsi::
         
         return uniffi_jsi::Bridging<int8_t>::toJs(rt, callInvoker, value);
 }
+jsi::Value NativeProofport::cpp_uniffi_proofport_checksum_func_combine_proof_and_public_inputs(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_proofport_checksum_func_combine_proof_and_public_inputs(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
 jsi::Value NativeProofport::cpp_uniffi_proofport_checksum_func_generate_circom_proof(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         auto value = uniffi_proofport_checksum_func_generate_circom_proof(
         );
@@ -2254,8 +2359,22 @@ jsi::Value NativeProofport::cpp_uniffi_proofport_checksum_func_get_noir_verifica
         
         return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
 }
+jsi::Value NativeProofport::cpp_uniffi_proofport_checksum_func_get_num_public_inputs_from_circuit(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_proofport_checksum_func_get_num_public_inputs_from_circuit(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
 jsi::Value NativeProofport::cpp_uniffi_proofport_checksum_func_mopro_hello_world(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         auto value = uniffi_proofport_checksum_func_mopro_hello_world(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeProofport::cpp_uniffi_proofport_checksum_func_parse_proof_with_public_inputs(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_proofport_checksum_func_parse_proof_with_public_inputs(
         );
 
         

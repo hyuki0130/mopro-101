@@ -43,6 +43,7 @@ import {
   FfiConverterInt32, 
   FfiConverterMap, 
   FfiConverterOptional, 
+  FfiConverterUInt32, 
   RustBuffer, 
   UniffiError, 
   UniffiInternalError, 
@@ -63,6 +64,21 @@ const uniffiIsDebug =
   false;
 // Public interface members begin here.
 
+/**
+ * Combine proof and public inputs back into a single proof
+ * Used when you need to reconstruct the combined format
+ */
+export function combineProofAndPublicInputs(proof: ArrayBuffer, publicInputs: Array<ArrayBuffer>): ArrayBuffer {
+    return FfiConverterArrayBuffer.lift(uniffiCaller.rustCall(
+            /*caller:*/ (callStatus) => {
+                return nativeModule().ubrn_uniffi_proofport_fn_func_combine_proof_and_public_inputs(
+        FfiConverterArrayBuffer.lower(proof),
+        FfiConverterArrayArrayBuffer.lower(publicInputs),
+                callStatus);
+            },
+            /*liftString:*/ FfiConverterString.lift,
+    ));
+    }
 export function generateCircomProof(zkeyPath: string, circuitInputs: string, proofLib: ProofLib): CircomProofResult /*throws*/ {
     return FfiConverterTypeCircomProofResult.lift(
         uniffiCaller.rustCallWithError(
@@ -142,6 +158,20 @@ export function getNoirVerificationKey(circuitPath: string, srsPath: string | un
     ));
     }
 /**
+ * Get the number of public inputs from a circuit's JSON manifest
+ * This reads the circuit bytecode and extracts the public parameter count
+ */
+export function getNumPublicInputsFromCircuit(circuitPath: string): /*u32*/number {
+    return FfiConverterUInt32.lift(uniffiCaller.rustCall(
+            /*caller:*/ (callStatus) => {
+                return nativeModule().ubrn_uniffi_proofport_fn_func_get_num_public_inputs_from_circuit(
+        FfiConverterString.lower(circuitPath),
+                callStatus);
+            },
+            /*liftString:*/ FfiConverterString.lift,
+    ));
+    }
+/**
  * You can also customize the bindings by #[uniffi::export]
  * Reference: https://mozilla.github.io/uniffi-rs/latest/proc_macro/index.html
  */
@@ -149,6 +179,22 @@ export function moproHelloWorld(): string {
     return FfiConverterString.lift(uniffiCaller.rustCall(
             /*caller:*/ (callStatus) => {
                 return nativeModule().ubrn_uniffi_proofport_fn_func_mopro_hello_world(
+                callStatus);
+            },
+            /*liftString:*/ FfiConverterString.lift,
+    ));
+    }
+/**
+ * Parse a combined proof (proof + public inputs) into separated components
+ * The mopro proof format has public inputs prepended to the proof bytes
+ * This function separates them for on-chain verification
+ */
+export function parseProofWithPublicInputs(proof: ArrayBuffer, numPublicInputs: /*u32*/number): ProofWithPublicInputs {
+    return FfiConverterTypeProofWithPublicInputs.lift(uniffiCaller.rustCall(
+            /*caller:*/ (callStatus) => {
+                return nativeModule().ubrn_uniffi_proofport_fn_func_parse_proof_with_public_inputs(
+        FfiConverterArrayBuffer.lower(proof),
+        FfiConverterUInt32.lower(numPublicInputs),
                 callStatus);
             },
             /*liftString:*/ FfiConverterString.lift,
@@ -521,6 +567,80 @@ const FfiConverterTypeHalo2ProofResult = (() => {
 })();
 
 
+/**
+ * Struct representing a proof with separated public inputs
+ * Used for on-chain verification where proof and public inputs are passed separately
+ */
+export type ProofWithPublicInputs = {
+    /**
+     * The proof without public inputs (for Solidity verifier)
+     */
+    proof: ArrayBuffer,
+    /**
+     * The public inputs as an array of 32-byte values (for Solidity verifier)
+     */
+    publicInputs: Array<ArrayBuffer>,
+    /**
+     * The number of public inputs
+     */
+    numPublicInputs: /*u32*/number
+}
+
+/**
+ * Generated factory for {@link ProofWithPublicInputs} record objects.
+ */
+export const ProofWithPublicInputs = (() => {
+    const defaults = () => ({
+    });
+    const create = (() => {
+        return uniffiCreateRecord<ProofWithPublicInputs, ReturnType<typeof defaults>>(defaults);
+    })();
+    return Object.freeze({
+        /**
+         * Create a frozen instance of {@link ProofWithPublicInputs}, with defaults specified
+         * in Rust, in the {@link proofport} crate.
+         */
+        create,
+
+        /**
+         * Create a frozen instance of {@link ProofWithPublicInputs}, with defaults specified
+         * in Rust, in the {@link proofport} crate.
+         */
+        new: create,
+
+        /**
+         * Defaults specified in the {@link proofport} crate.
+         */
+        defaults: () => Object.freeze(defaults()) as Partial<ProofWithPublicInputs>,
+    });
+})();
+
+const FfiConverterTypeProofWithPublicInputs = (() => {
+    type TypeName = ProofWithPublicInputs;
+    class FFIConverter extends AbstractFfiConverterByteArray<TypeName> {
+        read(from: RustBuffer): TypeName {
+            return {
+                proof: FfiConverterArrayBuffer.read(from), 
+                publicInputs: FfiConverterArrayArrayBuffer.read(from), 
+                numPublicInputs: FfiConverterUInt32.read(from)
+            };
+        }
+        write(value: TypeName, into: RustBuffer): void {
+            FfiConverterArrayBuffer.write(value.proof, into);
+            FfiConverterArrayArrayBuffer.write(value.publicInputs, into);
+            FfiConverterUInt32.write(value.numPublicInputs, into);
+        }
+        allocationSize(value: TypeName): number {
+            return FfiConverterArrayBuffer.allocationSize(value.proof) + 
+            FfiConverterArrayArrayBuffer.allocationSize(value.publicInputs) + 
+            FfiConverterUInt32.allocationSize(value.numPublicInputs);
+            
+        }
+    };
+    return new FFIConverter();
+})();
+
+
 const stringConverter = {
     stringToBytes: (s: string) =>
         uniffiCaller.rustCall((status) => nativeModule().ubrn_uniffi_internal_fn_func_ffi__string_to_arraybuffer(s, status)),
@@ -530,6 +650,8 @@ const stringConverter = {
         uniffiCaller.rustCall((status) => nativeModule().ubrn_uniffi_internal_fn_func_ffi__string_to_byte_length(s, status)),
 };
 const FfiConverterString = uniffiCreateFfiConverterString(stringConverter);
+
+
 
 
 // Error type: MoproError
@@ -799,6 +921,10 @@ const FfiConverterTypeProofLib = (() => {
 const FfiConverterOptionalString = new FfiConverterOptional(FfiConverterString);
 
 
+// FfiConverter for Array<ArrayBuffer>
+const FfiConverterArrayArrayBuffer = new FfiConverterArray(FfiConverterArrayBuffer);
+
+
 // FfiConverter for Array<string>
 const FfiConverterArrayString = new FfiConverterArray(FfiConverterString);
 
@@ -824,6 +950,9 @@ function uniffiEnsureInitialized() {
     if (bindingsContractVersion !== scaffoldingContractVersion) {
         throw new UniffiInternalError.ContractVersionMismatch(scaffoldingContractVersion, bindingsContractVersion);
     }
+    if (nativeModule().ubrn_uniffi_proofport_checksum_func_combine_proof_and_public_inputs() !== 29030) {
+        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_proofport_checksum_func_combine_proof_and_public_inputs");
+    }
     if (nativeModule().ubrn_uniffi_proofport_checksum_func_generate_circom_proof() !== 55334) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_proofport_checksum_func_generate_circom_proof");
     }
@@ -836,8 +965,14 @@ function uniffiEnsureInitialized() {
     if (nativeModule().ubrn_uniffi_proofport_checksum_func_get_noir_verification_key() !== 11999) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_proofport_checksum_func_get_noir_verification_key");
     }
+    if (nativeModule().ubrn_uniffi_proofport_checksum_func_get_num_public_inputs_from_circuit() !== 28682) {
+        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_proofport_checksum_func_get_num_public_inputs_from_circuit");
+    }
     if (nativeModule().ubrn_uniffi_proofport_checksum_func_mopro_hello_world() !== 53589) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_proofport_checksum_func_mopro_hello_world");
+    }
+    if (nativeModule().ubrn_uniffi_proofport_checksum_func_parse_proof_with_public_inputs() !== 41558) {
+        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_proofport_checksum_func_parse_proof_with_public_inputs");
     }
     if (nativeModule().ubrn_uniffi_proofport_checksum_func_verify_circom_proof() !== 13690) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_proofport_checksum_func_verify_circom_proof");
@@ -861,5 +996,6 @@ export default Object.freeze({
     FfiConverterTypeHalo2ProofResult,
     FfiConverterTypeMoproError,
     FfiConverterTypeProofLib,
+    FfiConverterTypeProofWithPublicInputs,
   }
 });

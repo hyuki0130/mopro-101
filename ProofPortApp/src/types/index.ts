@@ -19,9 +19,12 @@ export interface ProofState {
 export type ProofStatus =
   | 'Ready'
   | 'Generating verification key...'
+  | 'Loading verification key...'
   | 'Verification key ready'
   | 'Generating proof...'
+  | 'Generating TEST proof...'
   | 'Proof ready'
+  | 'TEST Proof ready'
   | 'Verifying proof...'
   | 'Verifying proof (off-chain)...'
   | 'Verifying proof on-chain...'
@@ -31,7 +34,9 @@ export type ProofStatus =
   | 'Proof invalid'
   | 'Proof invalid (on-chain)'
   | 'Error generating VK'
+  | 'Error loading VK'
   | 'Error generating proof'
+  | 'Error generating test proof'
   | 'Error verifying proof'
   | 'Error: on-chain verification failed'
   | 'Invalid input';

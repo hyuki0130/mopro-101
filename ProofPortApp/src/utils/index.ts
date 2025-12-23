@@ -6,6 +6,7 @@ export {
   getAvailableStorage,
   clearAllCache,
   ensureStorageAvailable,
+  loadVkFromAssets,
 } from './asset';
 export {arrayBufferToHex, getTimestamp, validateInputs} from './format';
 export * from './coinbaseKyc';

@@ -48,8 +48,9 @@ echo ""
 # 출력 디렉토리 생성
 mkdir -p "$TEST_VECTORS_DIR"
 
-# 컴파일된 서킷 찾기
-CIRCUIT_FILES=$(find "$CIRCUITS_DIR" -path "*/target/*.json" -type f 2>/dev/null)
+# 컴파일된 서킷 찾기 (Nargo.toml의 패키지 이름과 매칭되는 json만)
+# target/ 디렉토리 바로 아래에 있는 .json 파일만 찾음 (target/proof/*.json 제외)
+CIRCUIT_FILES=$(find "$CIRCUITS_DIR" -path "*/target/*.json" -type f ! -path "*/target/proof/*" ! -path "*/target/*/*" 2>/dev/null)
 
 if [ -z "$CIRCUIT_FILES" ]; then
     echo "❌ 컴파일된 서킷이 없습니다."
@@ -77,6 +78,14 @@ for CIRCUIT_JSON in $CIRCUIT_FILES; do
     # JSON 파일 복사
     cp "$CIRCUIT_JSON" "$TEST_VECTORS_DIR/"
     echo "   ✅ ${CIRCUIT_NAME}.json 복사 완료"
+
+    # VK 파일 복사 (있으면 - 공식 데모처럼 번들링)
+    CIRCUIT_DIR=$(dirname "$CIRCUIT_JSON")
+    VK_FILE="${CIRCUIT_DIR}/proof/vk"
+    if [ -f "$VK_FILE" ]; then
+        cp "$VK_FILE" "${TEST_VECTORS_DIR}/${CIRCUIT_NAME}.vk"
+        echo "   ✅ ${CIRCUIT_NAME}.vk 복사 완료"
+    fi
 
     # 절대 경로 계산
     CIRCUIT_PATH="${TEST_VECTORS_DIR}/${CIRCUIT_NAME}.json"

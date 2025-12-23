@@ -224,3 +224,28 @@ export const ensureStorageAvailable = async (
 
   return true;
 };
+
+/**
+ * Load verification key from bundled assets
+ * VK is pre-generated during build and bundled with the app
+ */
+export const loadVkFromAssets = async (
+  circuitName: string,
+  addLog?: (msg: string) => void,
+): Promise<ArrayBuffer> => {
+  const log = addLog || console.log;
+
+  const vkPath = await getAssetPath(`${circuitName}.vk`);
+  log(`Loading VK from: ${vkPath}`);
+
+  // Read VK file as base64 and convert to ArrayBuffer
+  const vkBase64 = await RNFS.readFile(vkPath, 'base64');
+  const vkBinary = Buffer.from(vkBase64, 'base64');
+  const vkArrayBuffer = vkBinary.buffer.slice(
+    vkBinary.byteOffset,
+    vkBinary.byteOffset + vkBinary.byteLength,
+  );
+
+  log(`VK loaded: ${vkArrayBuffer.byteLength} bytes`);
+  return vkArrayBuffer;
+};

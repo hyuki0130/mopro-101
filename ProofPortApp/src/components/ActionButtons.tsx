@@ -8,6 +8,7 @@ interface ActionButtonsProps {
   onGenerateVK: () => void;
   onGenerateProof: () => void;
   onVerifyProof: () => void;
+  onVerifyProofOnChain?: () => void;
   onRunAll: () => void;
 }
 
@@ -18,6 +19,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   onGenerateVK,
   onGenerateProof,
   onVerifyProof,
+  onVerifyProofOnChain,
   onRunAll,
 }) => {
   return (
@@ -40,8 +42,17 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         style={[styles.button, (!hasProof || isLoading) && styles.disabled]}
         onPress={onVerifyProof}
         disabled={!hasProof || isLoading}>
-        <Text style={styles.buttonText}>3. Verify Proof</Text>
+        <Text style={styles.buttonText}>3. Verify Proof (Off-chain)</Text>
       </TouchableOpacity>
+
+      {onVerifyProofOnChain && (
+        <TouchableOpacity
+          style={[styles.onChainButton, (!hasProof || isLoading) && styles.disabled]}
+          onPress={onVerifyProofOnChain}
+          disabled={!hasProof || isLoading}>
+          <Text style={styles.onChainButtonText}>4. Verify On-Chain (Sepolia)</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         style={[styles.primaryButton, isLoading && styles.disabled]}
@@ -83,6 +94,19 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  onChainButton: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#34C759',
+  },
+  onChainButtonText: {
+    color: '#34C759',
     fontSize: 16,
     fontWeight: '600',
   },
