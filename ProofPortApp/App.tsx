@@ -1,7 +1,7 @@
 // AppKit config must be imported first
 import './src/config/AppKitConfig';
 
-import React from 'react';
+import React, {useState} from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
@@ -13,12 +13,23 @@ import {
   AgeVerifierScreen,
   CoinbaseKycScreen,
   PrivyWalletScreen,
+  LoadingScreen,
 } from './src/screens';
 import type {RootStackParamList} from './src/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const App: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(true);
+
+  if (isLoading) {
+    return (
+      <SafeAreaProvider>
+        <LoadingScreen onReady={() => setIsLoading(false)} />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <PrivyProvider appId={PRIVY_APP_ID} clientId={PRIVY_CLIENT_ID}>

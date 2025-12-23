@@ -11,3 +11,4 @@ export {
 export {arrayBufferToHex, getTimestamp, validateInputs} from './format';
 export * from './coinbaseKyc';
 export * from './attestationSearch';
+export * from './circuitDownload';

@@ -124,6 +124,16 @@ coverage/
 ProofPortApp/mopro_bindings/android/src/main/jniLibs/
 
 # ====================
+# Circuit Files (downloaded at runtime)
+# ====================
+# These large circuit files are now downloaded from GitHub at first launch
+# to reduce bundle size. Keep only in ProofPortApp/assets/circuits/ for GitHub hosting.
+ProofPortApp/android/app/src/main/assets/circuits/
+ProofPortApp/ios/ProofPortApp/*.json
+ProofPortApp/ios/ProofPortApp/*.srs
+ProofPortApp/ios/ProofPortApp/*.vk
+
+# ====================
 # Temporary Files
 # ====================
 *.log

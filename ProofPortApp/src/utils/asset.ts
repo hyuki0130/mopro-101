@@ -1,31 +1,34 @@
-import {Platform} from 'react-native';
 import RNFS from 'react-native-fs';
+import {getCircuitFilePath, circuitFileExists} from './circuitDownload';
 
 /**
- * Get the path to bundled assets based on platform
- * iOS: Assets are in MainBundlePath
- * Android: Assets need to be copied from assets folder to DocumentDirectory
+ * Get the path to circuit assets
+ * Files are downloaded from GitHub and stored in DocumentDirectory/circuits/
  */
 export const getAssetPath = async (filename: string): Promise<string> => {
-  if (Platform.OS === 'ios') {
-    return `${RNFS.MainBundlePath}/${filename}`;
+  // Extract circuit name and extension from filename
+  const match = filename.match(/^(.+)\.(json|srs|vk)$/);
+  if (!match) {
+    throw new Error(`Invalid circuit filename: ${filename}`);
   }
 
-  // For Android, copy from assets to document directory
-  const destPath = `${RNFS.DocumentDirectoryPath}/${filename}`;
-  const exists = await RNFS.exists(destPath);
+  const [, circuitName, extension] = match;
+  const filePath = getCircuitFilePath(circuitName, extension);
 
+  // Check if file exists
+  const exists = await circuitFileExists(circuitName, extension);
   if (!exists) {
-    await RNFS.copyFileAssets(`circuits/${filename}`, destPath);
+    throw new Error(
+      `Circuit file not found: ${filename}. Please download circuit files first.`,
+    );
   }
 
-  return destPath;
+  return filePath;
 };
 
 /**
- * Pre-load circuit assets for Android
- * This ensures large files (especially SRS) are copied before proof generation
- * Call this early to avoid first-run crashes due to async file copy timing issues
+ * Pre-load circuit assets
+ * Verifies that circuit files exist (should be downloaded first)
  */
 export const preloadCircuitAssets = async (
   circuitName: string,
@@ -33,31 +36,18 @@ export const preloadCircuitAssets = async (
 ): Promise<{circuitPath: string; srsPath: string}> => {
   const log = addLog || console.log;
 
-  log(`Preloading circuit assets for ${circuitName}...`);
+  log(`Verifying circuit assets for ${circuitName}...`);
 
-  // Get paths (this triggers file copy on Android)
+  // Get paths (throws error if files don't exist)
   const circuitPath = await getAssetPath(`${circuitName}.json`);
   const srsPath = await getAssetPath(`${circuitName}.srs`);
 
-  // Verify files exist and are readable
-  if (Platform.OS === 'android') {
-    const circuitExists = await RNFS.exists(circuitPath);
-    const srsExists = await RNFS.exists(srsPath);
+  // Get file sizes
+  const circuitStat = await RNFS.stat(circuitPath);
+  const srsStat = await RNFS.stat(srsPath);
 
-    if (!circuitExists) {
-      throw new Error(`Circuit file not found: ${circuitPath}`);
-    }
-    if (!srsExists) {
-      throw new Error(`SRS file not found: ${srsPath}`);
-    }
-
-    // Get file sizes to ensure they're fully copied
-    const circuitStat = await RNFS.stat(circuitPath);
-    const srsStat = await RNFS.stat(srsPath);
-
-    log(`Circuit file: ${(circuitStat.size / 1024).toFixed(1)} KB`);
-    log(`SRS file: ${(srsStat.size / (1024 * 1024)).toFixed(1)} MB`);
-  }
+  log(`Circuit file: ${(circuitStat.size / 1024).toFixed(1)} KB`);
+  log(`SRS file: ${(srsStat.size / (1024 * 1024)).toFixed(1)} MB`);
 
   log('Circuit assets ready');
   return {circuitPath, srsPath};

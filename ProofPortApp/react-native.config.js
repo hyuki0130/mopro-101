@@ -16,5 +16,7 @@ module.exports = {
       },
     },
   },
-  assets: ['./assets/circuits/'],
+  // Circuit assets are now downloaded at runtime from GitHub
+  // to reduce bundle size. See src/utils/circuitDownload.ts
+  assets: [],
 };
