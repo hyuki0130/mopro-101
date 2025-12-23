@@ -48,12 +48,6 @@ export interface EthereumProvider {
   getChainId?: () => Promise<string | undefined>;
 }
 
-export interface MetaMaskSDK {
-  terminate: () => Promise<void>;
-  connect: () => Promise<unknown>;
-  connectWith: (request: {method: string; params?: unknown[]}) => Promise<unknown>;
-}
-
 export interface ParsedProofData {
   proofHex: string;
   publicInputsHex: string[];
@@ -72,7 +66,6 @@ export interface UseCoinbaseKycReturn {
   generateProofWithSteps: (
     inputs: CoinbaseKycInputs,
     ethereum: EthereumProvider | null,
-    sdk: MetaMaskSDK | null,
     addLog: (msg: string) => void,
   ) => Promise<void>;
   verifyProofOffChain: (addLog: (msg: string) => void) => Promise<void>;
@@ -155,7 +148,6 @@ export const useCoinbaseKyc = (): UseCoinbaseKycReturn => {
     async (
       inputs: CoinbaseKycInputs,
       ethereum: EthereumProvider | null,
-      sdk: MetaMaskSDK | null,
       addLog: (msg: string) => void,
     ) => {
       if (!inputs.userAddress) {
@@ -264,10 +256,7 @@ export const useCoinbaseKyc = (): UseCoinbaseKycReturn => {
           const errorCode = (signError as {code?: number})?.code;
 
           if (errorCode === -32002 || signErrorMsg.includes('already pending')) {
-            if (sdk) {
-              await sdk.terminate();
-            }
-            throw new Error('Session reset due to pending request. Please reconnect wallet.');
+            throw new Error('Signing request already pending. Please try again.');
           }
           throw new Error(`Signature failed: ${signErrorMsg}`);
         } finally {

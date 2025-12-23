@@ -34,9 +34,7 @@ export const CoinbaseKycScreen: React.FC = () => {
     status: walletStatus,
     isReady: isPrivyReady,
     isWalletConnected,
-    isAuthenticated,
     connect: connectWallet,
-    signInWithWallet,
     disconnect: disconnectWallet,
     formattedAddress,
     getProvider,
@@ -87,7 +85,6 @@ export const CoinbaseKycScreen: React.FC = () => {
           signerIndex: 0,
         },
         ethereumProvider,
-        null,
         addLog,
       );
     } catch (error) {
@@ -114,25 +111,21 @@ export const CoinbaseKycScreen: React.FC = () => {
   };
 
   const getWalletButtonStyle = () => {
-    if (isAuthenticated) return styles.connectedButton;
-    if (isWalletConnected) return styles.walletConnectedButton;
+    if (isWalletConnected) return styles.connectedButton;
     if (walletStatus === 'connecting') return styles.connectingButton;
     return styles.disconnectedButton;
   };
 
   const getWalletButtonText = () => {
-    if (isAuthenticated) return `${formattedAddress} (Disconnect)`;
-    if (isWalletConnected) return `${formattedAddress} - Sign In`;
+    if (isWalletConnected) return `${formattedAddress} (Disconnect)`;
     if (walletStatus === 'connecting') return 'Connecting...';
     if (!isPrivyReady) return 'Initializing...';
     return 'Connect Wallet';
   };
 
   const handleWalletPress = () => {
-    if (isAuthenticated) {
+    if (isWalletConnected) {
       disconnectWallet();
-    } else if (isWalletConnected) {
-      signInWithWallet();
     } else {
       connectWallet();
     }
@@ -315,9 +308,6 @@ const styles = StyleSheet.create({
   },
   connectedButton: {
     backgroundColor: '#34C759',
-  },
-  walletConnectedButton: {
-    backgroundColor: '#6366F1',
   },
   connectingButton: {
     backgroundColor: '#FF9500',

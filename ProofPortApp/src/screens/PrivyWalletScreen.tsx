@@ -1,44 +1,37 @@
-import React, {useState, useCallback, useEffect} from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {usePrivy, useLoginWithSiwe} from '@privy-io/expo';
-import {useAppKit, useAccount, useWalletInfo, useProvider} from '@reown/appkit-react-native';
-import {useLogs} from '../hooks';
-import {LogViewer} from '../components';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { usePrivy } from '@privy-io/expo';
+import {
+  useAppKit,
+  useAccount,
+  useWalletInfo,
+} from '@reown/appkit-react-native';
+import { useLogs } from '../hooks';
+import { LogViewer } from '../components';
 
 export const PrivyWalletScreen: React.FC = () => {
-  const {logs, addLog, clearLogs, logScrollRef} = useLogs();
-  const {isReady, user, logout: privyLogout} = usePrivy();
+  const { logs, addLog, clearLogs, logScrollRef } = useLogs();
+  const { isReady, user, logout: privyLogout } = usePrivy();
   const isAuthenticated = !!user;
-  const {generateSiweMessage, loginWithSiwe, state: siweState} = useLoginWithSiwe({
-    onSuccess: (privyUser) => {
-      addLog(`Privy login success! User ID: ${privyUser.id}`);
-    },
-    onError: (error) => {
-      addLog(`Privy error: ${error.message}`);
-    },
-  });
 
   // AppKit hooks for wallet connection
-  const {open, disconnect} = useAppKit();
-  const {address, isConnected, chainId} = useAccount();
-  const {walletInfo} = useWalletInfo();
-  const {provider: walletProvider} = useProvider();
+  const { open, disconnect } = useAppKit();
+  const { address, isConnected } = useAccount();
+  const { walletInfo } = useWalletInfo();
 
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isSigning, setIsSigning] = useState(false);
 
   // Get wallet address from Privy user
   const privyWalletAddress = user?.linked_accounts?.find(
-    (account) => account.type === 'wallet'
+    account => account.type === 'wallet',
   )?.address;
 
   const handleConnectWallet = useCallback(async () => {
@@ -54,57 +47,6 @@ export const PrivyWalletScreen: React.FC = () => {
       setIsConnecting(false);
     }
   }, [open, addLog, clearLogs]);
-
-  const handleSignInWithWallet = useCallback(async () => {
-    if (!address) {
-      Alert.alert('Error', 'Please connect your wallet first');
-      return;
-    }
-
-    if (!walletProvider) {
-      Alert.alert('Error', 'No wallet provider available');
-      return;
-    }
-
-    setIsSigning(true);
-    addLog('Generating SIWE message...');
-
-    try {
-      // Generate SIWE message with chainId in CAIP-2 format
-      const chainIdValue = chainId ? Number(chainId) : 1;
-      const message = await generateSiweMessage({
-        wallet: {
-          address,
-          chainId: `eip155:${chainIdValue}`,
-        },
-        from: {
-          domain: 'zkproofport.app',
-          uri: 'https://zkproofport.app',
-        },
-      });
-
-      addLog('SIWE message generated');
-      addLog('Requesting wallet signature...');
-
-      // Sign the message using the provider
-      const signature = await walletProvider.request({
-        method: 'personal_sign',
-        params: [message, address],
-      }) as string;
-
-      addLog('Signature received, logging in...');
-
-      // Login with the signature
-      await loginWithSiwe({signature});
-      addLog('Successfully logged in with wallet!');
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Unknown error';
-      addLog(`Sign-in error: ${msg}`);
-      Alert.alert('Error', msg);
-    } finally {
-      setIsSigning(false);
-    }
-  }, [address, chainId, walletProvider, generateSiweMessage, loginWithSiwe, addLog]);
 
   const handleDisconnect = useCallback(async () => {
     addLog('Disconnecting...');
@@ -164,7 +106,10 @@ export const PrivyWalletScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
         <View style={styles.content}>
           <View style={styles.iconContainer}>
             <Text style={styles.icon}>P</Text>
@@ -174,7 +119,9 @@ export const PrivyWalletScreen: React.FC = () => {
           <Text style={styles.subtitle}>Connect external wallet via Privy</Text>
 
           <View style={styles.statusRow}>
-            <View style={[styles.statusDot, {backgroundColor: getStatusColor()}]} />
+            <View
+              style={[styles.statusDot, { backgroundColor: getStatusColor() }]}
+            />
             <Text style={styles.statusText}>{getStatusText()}</Text>
           </View>
 
@@ -182,8 +129,14 @@ export const PrivyWalletScreen: React.FC = () => {
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Connected Wallet</Text>
-              <Text style={isConnected ? styles.infoValue : styles.infoValueDisabled}>
-                {isConnected && address ? formatAddress(address) : 'Not connected'}
+              <Text
+                style={
+                  isConnected ? styles.infoValue : styles.infoValueDisabled
+                }
+              >
+                {isConnected && address
+                  ? formatAddress(address)
+                  : 'Not connected'}
               </Text>
             </View>
 
@@ -191,7 +144,11 @@ export const PrivyWalletScreen: React.FC = () => {
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Wallet Name</Text>
-              <Text style={isConnected ? styles.infoValue : styles.infoValueDisabled}>
+              <Text
+                style={
+                  isConnected ? styles.infoValue : styles.infoValueDisabled
+                }
+              >
                 {walletInfo?.name || 'N/A'}
               </Text>
             </View>
@@ -200,7 +157,11 @@ export const PrivyWalletScreen: React.FC = () => {
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Privy User</Text>
-              <Text style={isAuthenticated ? styles.infoValue : styles.infoValueDisabled}>
+              <Text
+                style={
+                  isAuthenticated ? styles.infoValue : styles.infoValueDisabled
+                }
+              >
                 {isAuthenticated && privyWalletAddress
                   ? formatAddress(privyWalletAddress)
                   : 'Not isAuthenticated'}
@@ -214,30 +175,19 @@ export const PrivyWalletScreen: React.FC = () => {
               <TouchableOpacity
                 style={[styles.button, styles.primaryButton]}
                 onPress={handleConnectWallet}
-                disabled={isConnecting}>
+                disabled={isConnecting}
+              >
                 {isConnecting ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.buttonText}>Connect Wallet</Text>
                 )}
               </TouchableOpacity>
-            ) : !isAuthenticated ? (
-              <TouchableOpacity
-                style={[styles.button, styles.primaryButton]}
-                onPress={handleSignInWithWallet}
-                disabled={isSigning}>
-                {isSigning ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.buttonText}>Sign In with Wallet</Text>
-                )}
-              </TouchableOpacity>
-            ) : null}
-
-            {(isConnected || isAuthenticated) && (
+            ) : (
               <TouchableOpacity
                 style={[styles.button, styles.secondaryButton]}
-                onPress={handleDisconnect}>
+                onPress={handleDisconnect}
+              >
                 <Text style={styles.buttonText}>Disconnect</Text>
               </TouchableOpacity>
             )}
@@ -293,7 +243,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -335,7 +285,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     width: '100%',
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,

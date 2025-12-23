@@ -1,9 +1,15 @@
-import {useState, useCallback, useEffect} from 'react';
-import {usePrivy, useLoginWithSiwe} from '@privy-io/expo';
-import {useAppKit, useAccount, useProvider} from '@reown/appkit-react-native';
-import {ethers} from 'ethers';
+import { useState, useCallback, useEffect } from 'react';
+import { usePrivy, useLoginWithSiwe } from '@privy-io/expo';
+import { useAppKit, useAccount, useProvider } from '@reown/appkit-react-native';
+import { ethers } from 'ethers';
 
-export type PrivyConnectionStatus = 'initializing' | 'disconnected' | 'connecting' | 'wallet_connected' | 'authenticated' | 'error';
+export type PrivyConnectionStatus =
+  | 'initializing'
+  | 'disconnected'
+  | 'connecting'
+  | 'wallet_connected'
+  | 'authenticated'
+  | 'error';
 
 interface UsePrivyWalletReturn {
   // Connection state
@@ -27,28 +33,33 @@ interface UsePrivyWalletReturn {
   getSigner: () => Promise<ethers.Signer | null>;
 }
 
-export const usePrivyWallet = (addLog?: (msg: string) => void): UsePrivyWalletReturn => {
-  const log = useCallback((msg: string) => {
-    console.log(`🔐 ${msg}`);
-    addLog?.(msg);
-  }, [addLog]);
+export const usePrivyWallet = (
+  addLog?: (msg: string) => void,
+): UsePrivyWalletReturn => {
+  const log = useCallback(
+    (msg: string) => {
+      console.log(`🔐 ${msg}`);
+      addLog?.(msg);
+    },
+    [addLog],
+  );
 
   // Privy hooks
-  const {isReady, user, logout: privyLogout} = usePrivy();
-  const {generateSiweMessage, loginWithSiwe} = useLoginWithSiwe({
-    onSuccess: (privyUser) => {
+  const { isReady, user, logout: privyLogout } = usePrivy();
+  const { generateSiweMessage, loginWithSiwe } = useLoginWithSiwe({
+    onSuccess: privyUser => {
       log(`Privy login success! User ID: ${privyUser.id}`);
     },
-    onError: (err) => {
+    onError: err => {
       log(`Privy error: ${err.message}`);
       setError(err.message);
     },
   });
 
   // AppKit hooks for wallet connection
-  const {open, disconnect: appKitDisconnect} = useAppKit();
-  const {address, isConnected, chainId: accountChainId} = useAccount();
-  const {provider: walletProvider} = useProvider();
+  const { open, disconnect: appKitDisconnect } = useAppKit();
+  const { address, isConnected, chainId: accountChainId } = useAccount();
+  const { provider: walletProvider } = useProvider();
 
   const [error, setError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -59,7 +70,7 @@ export const usePrivyWallet = (addLog?: (msg: string) => void): UsePrivyWalletRe
 
   // Get wallet address from Privy user (for authenticated state)
   const privyWalletAddress = user?.linked_accounts?.find(
-    (account) => account.type === 'wallet'
+    account => account.type === 'wallet',
   )?.address;
 
   // Use AppKit address when connected, or Privy wallet address when authenticated
@@ -87,7 +98,8 @@ export const usePrivyWallet = (addLog?: (msg: string) => void): UsePrivyWalletRe
       log('Opening wallet selector...');
       await open();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to connect';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to connect';
       log(`Connect error: ${errorMessage}`);
       setError(errorMessage);
     } finally {
@@ -117,38 +129,64 @@ export const usePrivyWallet = (addLog?: (msg: string) => void): UsePrivyWalletRe
     try {
       log('Generating SIWE message...');
       const chainIdValue = chainId || 1;
+
+      // Debug: Log wallet info
+      log(`Wallet address: ${address}`);
+      log(`Chain ID: eip155:${chainIdValue}`);
+
+      // For mobile apps, use the bundle identifier as domain
+      const domain = 'zkproofport.com';
       const message = await generateSiweMessage({
         wallet: {
           address,
           chainId: `eip155:${chainIdValue}`,
         },
         from: {
-          domain: 'zkproofport.app',
-          uri: 'https://zkproofport.app',
+          domain,
+          uri: `https://${domain}`,
         },
       });
 
       log('SIWE message generated, requesting signature...');
+      // Debug: Log full message for debugging
+      log(`=== SIWE Message ===`);
+      log(message);
+      log(`=== End Message ===`);
 
-      // Sign the message using the wallet provider
-      const signature = await walletProvider.request({
-        method: 'personal_sign',
-        params: [message, address],
-      }) as string;
+      // Sign the SIWE message using ethers signer for proper encoding
+      const provider = new ethers.providers.Web3Provider(
+        walletProvider as ethers.providers.ExternalProvider,
+      );
+      const signer = provider.getSigner(address);
 
-      log('Signature received, logging in with Privy...');
+      // Debug: Verify signer address matches
+      const signerAddress = await signer.getAddress();
+      log(`Signer address: ${signerAddress}`);
 
-      // Login with the signature
-      await loginWithSiwe({signature});
+      const signature = await signer.signMessage(message);
+      log(`Signature received: ${signature}`);
+
+      log('Logging in with Privy...');
+
+      // Login with signature and messageOverride (in case cache doesn't match)
+      await loginWithSiwe({ signature, messageOverride: message });
       log('Successfully authenticated with Privy!');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Sign-in failed';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Sign-in failed';
       log(`Sign-in error: ${errorMessage}`);
       setError(errorMessage);
     } finally {
       setIsSigning(false);
     }
-  }, [address, chainId, walletProvider, generateSiweMessage, loginWithSiwe, log]);
+  }, [
+    address,
+    chainId,
+    walletProvider,
+    generateSiweMessage,
+    loginWithSiwe,
+    log,
+  ]);
 
   // Disconnect from both Privy and AppKit
   const disconnect = useCallback(async () => {
@@ -164,36 +202,45 @@ export const usePrivyWallet = (addLog?: (msg: string) => void): UsePrivyWalletRe
       }
       setError(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Disconnect failed';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Disconnect failed';
       log(`Disconnect error: ${errorMessage}`);
       setError(errorMessage);
     }
   }, [isAuthenticated, isConnected, privyLogout, appKitDisconnect, log]);
 
   // Sign a message (requires wallet connection)
-  const signMessage = useCallback(async (message: string): Promise<string> => {
-    if (!isConnected || !walletProvider || !address) {
-      throw new Error('Wallet not connected');
-    }
+  const signMessage = useCallback(
+    async (message: string): Promise<string> => {
+      if (!isConnected || !walletProvider || !address) {
+        throw new Error('Wallet not connected');
+      }
 
-    log(`Signing message: ${message.slice(0, 30)}...`);
+      log(`Signing message: ${message.slice(0, 30)}...`);
 
-    const provider = new ethers.providers.Web3Provider(walletProvider as ethers.providers.ExternalProvider);
-    const signer = provider.getSigner(address);
-    const signature = await signer.signMessage(message);
+      const provider = new ethers.providers.Web3Provider(
+        walletProvider as ethers.providers.ExternalProvider,
+      );
+      const signer = provider.getSigner(address);
+      const signature = await signer.signMessage(message);
 
-    log(`Signature received: ${signature.slice(0, 20)}...`);
-    return signature;
-  }, [isConnected, walletProvider, address, log]);
+      log(`Signature received: ${signature.slice(0, 20)}...`);
+      return signature;
+    },
+    [isConnected, walletProvider, address, log],
+  );
 
   // Get ethers provider
-  const getProvider = useCallback(async (): Promise<ethers.providers.Web3Provider | null> => {
-    if (!walletProvider) {
-      log('No wallet provider available');
-      return null;
-    }
-    return new ethers.providers.Web3Provider(walletProvider as ethers.providers.ExternalProvider);
-  }, [walletProvider, log]);
+  const getProvider =
+    useCallback(async (): Promise<ethers.providers.Web3Provider | null> => {
+      if (!walletProvider) {
+        log('No wallet provider available');
+        return null;
+      }
+      return new ethers.providers.Web3Provider(
+        walletProvider as ethers.providers.ExternalProvider,
+      );
+    }, [walletProvider, log]);
 
   // Get ethers signer
   const getSigner = useCallback(async (): Promise<ethers.Signer | null> => {
@@ -201,7 +248,9 @@ export const usePrivyWallet = (addLog?: (msg: string) => void): UsePrivyWalletRe
       log('No provider or address available');
       return null;
     }
-    const provider = new ethers.providers.Web3Provider(walletProvider as ethers.providers.ExternalProvider);
+    const provider = new ethers.providers.Web3Provider(
+      walletProvider as ethers.providers.ExternalProvider,
+    );
     return provider.getSigner(address);
   }, [walletProvider, address, log]);
 
