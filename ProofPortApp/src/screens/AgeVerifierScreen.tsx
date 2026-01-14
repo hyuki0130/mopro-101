@@ -1,4 +1,4 @@
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useEffect, useRef} from 'react';
 import {
   SafeAreaView,
   StyleSheet,
@@ -9,18 +9,44 @@ import {
   Platform,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
+import {useRoute, useNavigation, RouteProp} from '@react-navigation/native';
 import {Header, InputForm, LogViewer, StepProgress} from '../components';
-import {useLogs, useAgeVerifier} from '../hooks';
-import type {AgeVerifierInputs} from '../types';
+import {useLogs, useAgeVerifier, useDeepLink} from '../hooks';
+import type {AgeVerifierInputs, RootStackParamList, ProofRequest} from '../types';
+import type {DeepLinkAgeVerifierInputs} from '../types';
+
+type AgeVerifierRouteProp = RouteProp<RootStackParamList, 'AgeVerifier'>;
 
 export const AgeVerifierScreen: React.FC = () => {
-  // Input state
-  const [inputs, setInputs] = useState<AgeVerifierInputs>({
-    birthYear: '2000',
-    currentYear: new Date().getFullYear().toString(),
-    minAge: '18',
-  });
+  const route = useRoute<AgeVerifierRouteProp>();
+  const navigation = useNavigation();
+  const proofRequest = route.params?.proofRequest;
+  const {sendProof, sendError} = useDeepLink();
+
+  // Track if we've already processed this request to avoid duplicate sends
+  const processedRequestId = useRef<string | null>(null);
+  const hasAutoStarted = useRef(false);
+
+  // Input state - initialize from proofRequest if available
+  const getInitialInputs = (): AgeVerifierInputs => {
+    if (proofRequest?.inputs) {
+      const deepLinkInputs = proofRequest.inputs as DeepLinkAgeVerifierInputs;
+      return {
+        birthYear: deepLinkInputs.birthYear?.toString() || '2000',
+        currentYear: deepLinkInputs.currentYear?.toString() || new Date().getFullYear().toString(),
+        minAge: deepLinkInputs.minAge?.toString() || '18',
+      };
+    }
+    return {
+      birthYear: '2000',
+      currentYear: new Date().getFullYear().toString(),
+      minAge: '18',
+    };
+  };
+
+  const [inputs, setInputs] = useState<AgeVerifierInputs>(getInitialInputs);
 
   // Custom hooks
   const {logs, addLog, clearLogs, logScrollRef} = useLogs();
@@ -55,6 +81,83 @@ export const AgeVerifierScreen: React.FC = () => {
   const handleVerifyOnChain = useCallback(() => {
     verifyProofOnChain(addLog);
   }, [verifyProofOnChain, addLog]);
+
+  // Auto-start proof generation when coming from deep link
+  useEffect(() => {
+    if (proofRequest && !hasAutoStarted.current) {
+      hasAutoStarted.current = true;
+      addLog(`[DeepLink] Request from: ${proofRequest.dappName || 'Unknown'}`);
+      addLog(`[DeepLink] Request ID: ${proofRequest.requestId}`);
+      addLog(`[DeepLink] Auto-starting proof generation...`);
+
+      // Small delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        handleGenerateProof();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [proofRequest, handleGenerateProof, addLog]);
+
+  // Send callback when proof is ready (only for deep link requests)
+  useEffect(() => {
+    if (
+      proofRequest &&
+      parsedProof &&
+      processedRequestId.current !== proofRequest.requestId
+    ) {
+      processedRequestId.current = proofRequest.requestId;
+
+      addLog('[DeepLink] Proof generated, sending to callback...');
+
+      const sendCallback = async () => {
+        try {
+          const success = await sendProof(
+            proofRequest,
+            parsedProof.proofHex,
+            parsedProof.publicInputsHex,
+            parsedProof.numPublicInputs,
+          );
+
+          if (success) {
+            addLog('[DeepLink] Callback sent successfully!');
+            Alert.alert(
+              'Proof Sent',
+              `Proof has been sent to ${proofRequest.dappName || 'the requesting app'}.`,
+              [{text: 'OK', onPress: () => navigation.goBack()}],
+            );
+          } else {
+            addLog('[DeepLink] Failed to send callback');
+            Alert.alert('Error', 'Failed to send proof to the requesting app.');
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          addLog(`[DeepLink] Error sending callback: ${errorMessage}`);
+        }
+      };
+
+      sendCallback();
+    }
+  }, [proofRequest, parsedProof, sendProof, addLog, navigation]);
+
+  // Handle errors during proof generation (send error callback)
+  useEffect(() => {
+    if (
+      proofRequest &&
+      status.includes('Error') &&
+      processedRequestId.current !== proofRequest.requestId
+    ) {
+      processedRequestId.current = proofRequest.requestId;
+
+      addLog('[DeepLink] Error occurred, sending error callback...');
+
+      sendError(proofRequest, status).then(success => {
+        if (success) {
+          addLog('[DeepLink] Error callback sent');
+        }
+      });
+    }
+  }, [proofRequest, status, sendError, addLog]);
 
   const getStatusColor = () => {
     if (status.includes('Error') || status.includes('invalid')) return '#FF3B30';

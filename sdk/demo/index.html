@@ -343,8 +343,8 @@
       </div>
 
       <div class="form-group">
-        <label for="callbackUrl">Callback URL</label>
-        <input type="url" id="callbackUrl" placeholder="https://your-app.com/verify">
+        <label for="callbackUrl">Callback URL (비워두면 데모 서버로 결과 수신)</label>
+        <input type="url" id="callbackUrl" placeholder="비워두면 서버 콜백 엔드포인트 사용">
       </div>
 
       <div class="btn-group">
@@ -364,8 +364,8 @@
       </div>
 
       <div class="form-group">
-        <label for="coinbaseCallbackUrl">Callback URL</label>
-        <input type="url" id="coinbaseCallbackUrl" placeholder="https://your-app.com/verify">
+        <label for="coinbaseCallbackUrl">Callback URL (비워두면 데모 서버로 결과 수신)</label>
+        <input type="url" id="coinbaseCallbackUrl" placeholder="비워두면 서버 콜백 엔드포인트 사용">
       </div>
 
       <div class="form-group">
@@ -453,9 +453,14 @@
 
   <script type="module">
     const DEFAULT_SCHEME = 'zkproofport';
+    const SERVER_URL = window.location.origin; // Same origin as server
+    const CALLBACK_URL = `${SERVER_URL}/callback`;
+    const POLL_INTERVAL = 2000; // Poll every 2 seconds
+
     let currentRequest = null;
     let currentDeepLink = null;
     let currentCircuit = 'age_verifier';
+    let pollingTimer = null;
 
     // Utility functions
     function generateRequestId() {
@@ -514,8 +519,147 @@
       }
     }
 
+    // Stop polling
+    function stopPolling() {
+      if (pollingTimer) {
+        clearInterval(pollingTimer);
+        pollingTimer = null;
+        log('Polling stopped');
+      }
+    }
+
+    // Start polling for result
+    function startPolling(requestId) {
+      stopPolling(); // Clear any existing polling
+
+      log(`Starting to poll for request: ${requestId}`, 'info');
+      document.getElementById('request-status').textContent = '요청 중...';
+      document.getElementById('request-status').className = 'status-badge pending';
+
+      pollingTimer = setInterval(async () => {
+        try {
+          const response = await fetch(`${SERVER_URL}/status/${requestId}`);
+          const data = await response.json();
+
+          if (data.found) {
+            stopPolling();
+            handleProofResult(data.data);
+          }
+        } catch (e) {
+          log(`Polling error: ${e.message}`, 'error');
+        }
+      }, POLL_INTERVAL);
+
+      // Also poll immediately
+      (async () => {
+        try {
+          const response = await fetch(`${SERVER_URL}/status/${requestId}`);
+          const data = await response.json();
+          if (data.found) {
+            stopPolling();
+            handleProofResult(data.data);
+          }
+        } catch (e) {
+          // Ignore initial poll error
+        }
+      })();
+    }
+
+    // Handle proof result received from server
+    function handleProofResult(data) {
+      const { requestId, status, proof, publicInputs, numPublicInputs, circuit, error } = data;
+
+      log(`=== Proof Result Received ===`, 'info');
+      log(`Request ID: ${requestId}`, 'info');
+      log(`Status: ${status}`, status === 'completed' ? 'success' : 'error');
+
+      const resultDiv = document.getElementById('request-result');
+      resultDiv.classList.remove('hidden');
+      document.getElementById('request-id').textContent = requestId;
+
+      // Remove any existing result messages
+      const existingResults = resultDiv.querySelectorAll('.result');
+      existingResults.forEach(el => el.remove());
+
+      if (status === 'completed') {
+        if (proof) {
+          document.getElementById('proofInput').value = proof;
+          log(`Proof: ${proof.substring(0, 60)}...`, 'success');
+        }
+        if (publicInputs) {
+          const publicInputsStr = Array.isArray(publicInputs) ? publicInputs.join(', ') : publicInputs;
+          document.getElementById('publicInputsInput').value = publicInputsStr;
+          log(`Public Inputs: ${publicInputsStr}`, 'success');
+        }
+        if (circuit) {
+          document.getElementById('verifyCircuit').value = circuit;
+          document.getElementById('request-circuit').textContent = circuit;
+          log(`Circuit: ${circuit}`, 'info');
+        }
+        if (numPublicInputs) {
+          log(`Number of Public Inputs: ${numPublicInputs}`, 'info');
+        }
+
+        document.getElementById('request-status').textContent = 'Completed';
+        document.getElementById('request-status').className = 'status-badge completed';
+
+        // Hide QR/deeplink displays
+        document.getElementById('qr-display').classList.add('hidden');
+        document.getElementById('deeplink-display').classList.add('hidden');
+
+        // Show success result
+        const successHtml = `
+          <div class="result success" style="margin-top: 1rem;">
+            <div class="result-title">✅ Proof Received from App!</div>
+            <p>The ZK proof has been successfully generated and sent back.</p>
+            <p style="font-size: 0.875rem; margin-top: 0.5rem;">
+              You can now verify the proof on-chain using the Verification section below.
+            </p>
+          </div>
+        `;
+        resultDiv.insertAdjacentHTML('beforeend', successHtml);
+
+        // Scroll to verification section
+        document.getElementById('verify-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        log('=== Ready for On-chain Verification ===', 'success');
+        log('Click "On-chain 검증" button below to verify the proof on Sepolia', 'info');
+
+      } else if (status === 'error') {
+        log(`Error from app: ${error}`, 'error');
+
+        document.getElementById('request-status').textContent = 'Error';
+        document.getElementById('request-status').className = 'status-badge error';
+
+        // Show error
+        const errorHtml = `
+          <div class="result error" style="margin-top: 1rem;">
+            <div class="result-title">❌ Error</div>
+            <p>${error || 'Unknown error occurred'}</p>
+          </div>
+        `;
+        resultDiv.insertAdjacentHTML('beforeend', errorHtml);
+
+      } else if (status === 'cancelled') {
+        log('Request was cancelled by user', 'warning');
+
+        document.getElementById('request-status').textContent = 'Cancelled';
+        document.getElementById('request-status').className = 'status-badge error';
+
+        // Show cancelled
+        const cancelHtml = `
+          <div class="result error" style="margin-top: 1rem;">
+            <div class="result-title">🚫 Cancelled</div>
+            <p>The user cancelled the proof request.</p>
+          </div>
+        `;
+        resultDiv.insertAdjacentHTML('beforeend', cancelHtml);
+      }
+    }
+
     // Clear generated request when switching tabs
     function clearRequestResult() {
+      stopPolling();
       currentRequest = null;
       currentDeepLink = null;
       const resultDiv = document.getElementById('request-result');
@@ -585,6 +729,10 @@
         return;
       }
 
+      // Use custom callback URL if provided, otherwise use server's callback endpoint
+      const customCallbackUrl = document.getElementById('callbackUrl').value;
+      const callbackUrl = customCallbackUrl || CALLBACK_URL;
+
       const request = {
         requestId: generateRequestId(),
         circuit: 'age_verifier',
@@ -593,7 +741,7 @@
           currentYear: parseInt(document.getElementById('currentYear').value),
           minAge: parseInt(document.getElementById('minAge').value)
         },
-        callbackUrl: document.getElementById('callbackUrl').value || window.location.href,
+        callbackUrl: callbackUrl,
         dappName: 'ProofPort Demo',
         message: '나이 검증이 필요합니다. 확인 후 자동으로 증명이 생성됩니다.',
         createdAt: Date.now(),
@@ -605,6 +753,12 @@
 
       showRequestResult(request, currentDeepLink, false);
       log(`Created age verification request: ${request.requestId}`, 'success');
+      log(`Callback URL: ${callbackUrl}`, 'info');
+
+      // Start polling for result (only if using server callback)
+      if (!customCallbackUrl) {
+        startPolling(request.requestId);
+      }
     };
 
     window.createAgeQR = async function() {
@@ -612,6 +766,10 @@
         log('입력값을 확인해주세요', 'error');
         return;
       }
+
+      // Use custom callback URL if provided, otherwise use server's callback endpoint
+      const customCallbackUrl = document.getElementById('callbackUrl').value;
+      const callbackUrl = customCallbackUrl || CALLBACK_URL;
 
       const request = {
         requestId: generateRequestId(),
@@ -621,7 +779,7 @@
           currentYear: parseInt(document.getElementById('currentYear').value),
           minAge: parseInt(document.getElementById('minAge').value)
         },
-        callbackUrl: document.getElementById('callbackUrl').value || window.location.href,
+        callbackUrl: callbackUrl,
         dappName: 'ProofPort Demo',
         message: '나이 검증이 필요합니다. 확인 후 자동으로 증명이 생성됩니다.',
         createdAt: Date.now(),
@@ -633,17 +791,27 @@
 
       await showRequestResult(request, currentDeepLink, true);
       log(`Created QR code for age verification: ${request.requestId}`, 'success');
+      log(`Callback URL: ${callbackUrl}`, 'info');
+
+      // Start polling for result (only if using server callback)
+      if (!customCallbackUrl) {
+        startPolling(request.requestId);
+      }
     };
 
     // Coinbase KYC Request (지갑 주소 입력 불필요!)
     window.createCoinbaseRequest = function() {
+      // Use custom callback URL if provided, otherwise use server's callback endpoint
+      const customCallbackUrl = document.getElementById('coinbaseCallbackUrl').value;
+      const callbackUrl = customCallbackUrl || CALLBACK_URL;
+
       const request = {
         requestId: generateRequestId(),
         circuit: 'zk_coinbase_attestor',
         inputs: {
           // 지갑 주소 없음! 앱에서 연결하여 가져옴
         },
-        callbackUrl: document.getElementById('coinbaseCallbackUrl').value || window.location.href,
+        callbackUrl: callbackUrl,
         dappName: 'ProofPort Demo',
         message: document.getElementById('coinbaseMessage').value || 'Coinbase 본인인증을 증명해주세요. 앱에서 지갑을 연결하면 자동으로 검증이 시작됩니다.',
         createdAt: Date.now(),
@@ -655,17 +823,27 @@
 
       showRequestResult(request, currentDeepLink, false);
       log(`Created Coinbase KYC request: ${request.requestId}`, 'success');
+      log(`Callback URL: ${callbackUrl}`, 'info');
       log('앱에서 지갑 연결 후 자동으로 검증이 시작됩니다', 'info');
+
+      // Start polling for result (only if using server callback)
+      if (!customCallbackUrl) {
+        startPolling(request.requestId);
+      }
     };
 
     window.createCoinbaseQR = async function() {
+      // Use custom callback URL if provided, otherwise use server's callback endpoint
+      const customCallbackUrl = document.getElementById('coinbaseCallbackUrl').value;
+      const callbackUrl = customCallbackUrl || CALLBACK_URL;
+
       const request = {
         requestId: generateRequestId(),
         circuit: 'zk_coinbase_attestor',
         inputs: {
           // 지갑 주소 없음! 앱에서 연결하여 가져옴
         },
-        callbackUrl: document.getElementById('coinbaseCallbackUrl').value || window.location.href,
+        callbackUrl: callbackUrl,
         dappName: 'ProofPort Demo',
         message: document.getElementById('coinbaseMessage').value || 'Coinbase 본인인증을 증명해주세요. 앱에서 지갑을 연결하면 자동으로 검증이 시작됩니다.',
         createdAt: Date.now(),
@@ -677,7 +855,13 @@
 
       await showRequestResult(request, currentDeepLink, true);
       log(`Created QR code for Coinbase KYC: ${request.requestId}`, 'success');
+      log(`Callback URL: ${callbackUrl}`, 'info');
       log('앱에서 지갑 연결 후 자동으로 검증이 시작됩니다', 'info');
+
+      // Start polling for result (only if using server callback)
+      if (!customCallbackUrl) {
+        startPolling(request.requestId);
+      }
     };
 
     async function showRequestResult(request, deepLink, showQR) {
@@ -808,7 +992,9 @@
       const status = params.get('status');
 
       if (requestId && status) {
-        log(`Received callback response: ${status}`, status === 'completed' ? 'success' : 'error');
+        log(`=== Callback Response Received ===`, 'info');
+        log(`Request ID: ${requestId}`, 'info');
+        log(`Status: ${status}`, status === 'completed' ? 'success' : 'error');
 
         const resultDiv = document.getElementById('request-result');
         resultDiv.classList.remove('hidden');
@@ -818,33 +1004,80 @@
           const proof = params.get('proof');
           const publicInputs = params.get('publicInputs');
           const circuit = params.get('circuit');
+          const numPublicInputs = params.get('numPublicInputs');
 
           if (proof) {
             document.getElementById('proofInput').value = proof;
+            log(`Proof: ${proof.substring(0, 60)}...`, 'success');
           }
           if (publicInputs) {
             document.getElementById('publicInputsInput').value = publicInputs;
+            log(`Public Inputs: ${publicInputs}`, 'success');
           }
           if (circuit) {
             document.getElementById('verifyCircuit').value = circuit;
             document.getElementById('request-circuit').textContent = circuit;
+            log(`Circuit: ${circuit}`, 'info');
           }
-
-          log(`Proof received: ${proof?.substring(0, 50)}...`, 'success');
+          if (numPublicInputs) {
+            log(`Number of Public Inputs: ${numPublicInputs}`, 'info');
+          }
 
           document.getElementById('request-status').textContent = 'Completed';
           document.getElementById('request-status').className = 'status-badge completed';
+
+          // Hide QR/deeplink displays, show success message
+          document.getElementById('qr-display').classList.add('hidden');
+          document.getElementById('deeplink-display').classList.add('hidden');
+
+          // Show success result in request-result
+          const successHtml = `
+            <div class="result success" style="margin-top: 1rem;">
+              <div class="result-title">✅ Proof Received from App!</div>
+              <p>The ZK proof has been successfully generated and sent back.</p>
+              <p style="font-size: 0.875rem; margin-top: 0.5rem;">
+                You can now verify the proof on-chain using the Verification section below.
+              </p>
+            </div>
+          `;
+          resultDiv.insertAdjacentHTML('beforeend', successHtml);
+
+          // Scroll to verification section
+          document.getElementById('verify-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+          log('=== Ready for On-chain Verification ===', 'success');
+          log('Click "On-chain 검증" button below to verify the proof on Sepolia', 'info');
+
         } else if (status === 'error') {
           const error = params.get('error');
           log(`Error from app: ${error}`, 'error');
 
           document.getElementById('request-status').textContent = 'Error';
           document.getElementById('request-status').className = 'status-badge error';
+
+          // Show error in request-result
+          const errorHtml = `
+            <div class="result error" style="margin-top: 1rem;">
+              <div class="result-title">❌ Error</div>
+              <p>${error || 'Unknown error occurred'}</p>
+            </div>
+          `;
+          resultDiv.insertAdjacentHTML('beforeend', errorHtml);
+
         } else if (status === 'cancelled') {
           log('Request was cancelled by user', 'warning');
 
           document.getElementById('request-status').textContent = 'Cancelled';
           document.getElementById('request-status').className = 'status-badge error';
+
+          // Show cancelled in request-result
+          const cancelHtml = `
+            <div class="result error" style="margin-top: 1rem;">
+              <div class="result-title">🚫 Cancelled</div>
+              <p>The user cancelled the proof request.</p>
+            </div>
+          `;
+          resultDiv.insertAdjacentHTML('beforeend', cancelHtml);
         }
 
         // Clean URL

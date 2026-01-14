@@ -1,4 +1,4 @@
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useEffect, useRef} from 'react';
 import {
   SafeAreaView,
   StyleSheet,
@@ -9,12 +9,26 @@ import {
   Platform,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
+import {useRoute, useNavigation, RouteProp} from '@react-navigation/native';
 import {LogViewer, StepProgress} from '../components';
-import {useLogs, useCoinbaseKyc, usePrivyWallet} from '../hooks';
+import {useLogs, useCoinbaseKyc, usePrivyWallet, useDeepLink} from '../hooks';
 import {findAttestationTransaction} from '../utils';
+import type {RootStackParamList} from '../types';
+
+type CoinbaseKycRouteProp = RouteProp<RootStackParamList, 'CoinbaseKyc'>;
 
 export const CoinbaseKycScreen: React.FC = () => {
+  const route = useRoute<CoinbaseKycRouteProp>();
+  const navigation = useNavigation();
+  const proofRequest = route.params?.proofRequest;
+  const {sendProof, sendError} = useDeepLink();
+
+  // Track if we've already processed this request
+  const processedRequestId = useRef<string | null>(null);
+  const hasAutoStarted = useRef(false);
+
   const [rawTransaction, setRawTransaction] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const {logs, addLog, clearLogs, logScrollRef} = useLogs();
@@ -102,6 +116,92 @@ export const CoinbaseKycScreen: React.FC = () => {
   const handleVerifyOnChain = useCallback(() => {
     verifyProofOnChain(addLog);
   }, [verifyProofOnChain, addLog]);
+
+  // Auto-start when coming from deep link and wallet is connected
+  useEffect(() => {
+    if (proofRequest && isWalletConnected && account && !hasAutoStarted.current) {
+      hasAutoStarted.current = true;
+      addLog(`[DeepLink] Request from: ${proofRequest.dappName || 'Unknown'}`);
+      addLog(`[DeepLink] Request ID: ${proofRequest.requestId}`);
+      addLog(`[DeepLink] Wallet connected: ${account.substring(0, 10)}...`);
+      addLog(`[DeepLink] Auto-starting proof generation...`);
+
+      // Small delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        handleGenerateProof();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [proofRequest, isWalletConnected, account, handleGenerateProof, addLog]);
+
+  // Prompt wallet connection if coming from deep link without wallet
+  useEffect(() => {
+    if (proofRequest && !isWalletConnected && isPrivyReady && !hasAutoStarted.current) {
+      addLog(`[DeepLink] Request from: ${proofRequest.dappName || 'Unknown'}`);
+      addLog(`[DeepLink] Wallet not connected, please connect to continue`);
+    }
+  }, [proofRequest, isWalletConnected, isPrivyReady, addLog]);
+
+  // Send callback when proof is ready (only for deep link requests)
+  useEffect(() => {
+    if (
+      proofRequest &&
+      parsedProof &&
+      processedRequestId.current !== proofRequest.requestId
+    ) {
+      processedRequestId.current = proofRequest.requestId;
+
+      addLog('[DeepLink] Proof generated, sending to callback...');
+
+      const sendCallback = async () => {
+        try {
+          const success = await sendProof(
+            proofRequest,
+            parsedProof.proofHex,
+            parsedProof.publicInputsHex,
+            parsedProof.numPublicInputs,
+          );
+
+          if (success) {
+            addLog('[DeepLink] Callback sent successfully!');
+            Alert.alert(
+              'Proof Sent',
+              `Proof has been sent to ${proofRequest.dappName || 'the requesting app'}.`,
+              [{text: 'OK', onPress: () => navigation.goBack()}],
+            );
+          } else {
+            addLog('[DeepLink] Failed to send callback');
+            Alert.alert('Error', 'Failed to send proof to the requesting app.');
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          addLog(`[DeepLink] Error sending callback: ${errorMessage}`);
+        }
+      };
+
+      sendCallback();
+    }
+  }, [proofRequest, parsedProof, sendProof, addLog, navigation]);
+
+  // Handle errors during proof generation (send error callback)
+  useEffect(() => {
+    if (
+      proofRequest &&
+      status.includes('Error') &&
+      processedRequestId.current !== proofRequest.requestId
+    ) {
+      processedRequestId.current = proofRequest.requestId;
+
+      addLog('[DeepLink] Error occurred, sending error callback...');
+
+      sendError(proofRequest, status).then(success => {
+        if (success) {
+          addLog('[DeepLink] Error callback sent');
+        }
+      });
+    }
+  }, [proofRequest, status, sendError, addLog]);
 
   const getStatusColor = () => {
     if (status.includes('Error') || status.includes('invalid')) return '#FF3B30';

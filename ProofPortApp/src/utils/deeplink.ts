@@ -2,7 +2,7 @@
  * Deep Link utilities for ProofPort App
  */
 
-import {Linking} from 'react-native';
+// Linking import removed - now using HTTP POST for callbacks
 
 export type CircuitType = 'age_verifier' | 'zk_coinbase_attestor';
 
@@ -233,20 +233,27 @@ export function buildCallbackUrl(
 }
 
 /**
- * Send proof response back to dapp via callback URL
+ * Send proof response back to dapp via HTTP POST (webhook style)
  */
 export async function sendProofResponse(response: ProofResponse, callbackUrl: string): Promise<boolean> {
   try {
-    const url = buildCallbackUrl(callbackUrl, response);
-    console.log('[DeepLink] Sending response to:', url.substring(0, 100) + '...');
+    console.log('[DeepLink] Sending response via HTTP POST to:', callbackUrl);
+    console.log('[DeepLink] Response:', JSON.stringify(response, null, 2));
 
-    const supported = await Linking.canOpenURL(url);
-    if (!supported) {
-      console.error('[DeepLink] Cannot open callback URL:', url);
+    const fetchResponse = await fetch(callbackUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(response),
+    });
+
+    if (!fetchResponse.ok) {
+      console.error('[DeepLink] HTTP error:', fetchResponse.status, fetchResponse.statusText);
       return false;
     }
 
-    await Linking.openURL(url);
+    console.log('[DeepLink] Response sent successfully');
     return true;
   } catch (error) {
     console.error('[DeepLink] Failed to send response:', error);
