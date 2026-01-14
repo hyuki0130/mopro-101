@@ -62,6 +62,12 @@ class AppDelegate: ExpoAppDelegate {
 }
 
 class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
+  // TODO: Disable Bridgeless mode for MetaMask SDK compatibility
+  // Temporarily commented out to test if this is causing the crash
+  // override func bridgelessEnabled() -> Bool {
+  //   return false
+  // }
+
   override func sourceURL(for bridge: RCTBridge) -> URL? {
     print("🔵 ReactNativeDelegate: sourceURL called")
     let url =    // needed to return the correct URL for expo-dev-client.
@@ -73,7 +79,16 @@ class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
   override func bundleURL() -> URL? {
     print("🔵 ReactNativeDelegate: bundleURL called")
 #if DEBUG
-    let url = RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
+    // Try RCTBundleURLProvider first
+    var url = RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
+
+    // If nil, create URL directly with Mac's IP (for physical device debugging)
+    if url == nil {
+      print("🔵 ReactNativeDelegate: RCTBundleURLProvider returned nil, using IP fallback")
+      // Use Mac's IP address for physical device - update this if IP changes
+      url = URL(string: "http://10.78.14.37:8081/index.bundle?platform=ios&dev=true&minify=false")
+    }
+
     print("🔵 ReactNativeDelegate: DEBUG bundle URL = \(url?.absoluteString ?? "nil")")
     return url
 #else

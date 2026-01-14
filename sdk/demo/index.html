@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProofPort SDK Demo</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --success: #22c55e;
+      --error: #ef4444;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--primary), #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .tab {
+      padding: 0.75rem 1.5rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      border-color: var(--primary);
+    }
+
+    .tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: var(--text);
+      font-size: 1rem;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    input.error {
+      border-color: var(--error);
+    }
+
+    .error-text {
+      color: var(--error);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      background: var(--primary);
+      border: none;
+      border-radius: 0.5rem;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--primary);
+      background: transparent;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .qr-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      background: white;
+      border-radius: 1rem;
+      margin: 1rem 0;
+    }
+
+    .qr-container img {
+      max-width: 250px;
+    }
+
+    .qr-hint {
+      color: #333;
+      margin-top: 1rem;
+      font-size: 0.875rem;
+      text-align: center;
+    }
+
+    .deeplink-url {
+      word-break: break-all;
+      padding: 1rem;
+      background: var(--bg);
+      border-radius: 0.5rem;
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 1rem;
+    }
+
+    .result {
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .result.success {
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid var(--success);
+    }
+
+    .result.error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--error);
+    }
+
+    .result-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .result.success .result-title {
+      color: var(--success);
+    }
+
+    .result.error .result-title {
+      color: var(--error);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .info-box {
+      padding: 1rem;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid var(--primary);
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+    }
+
+    .info-box.warning {
+      background: rgba(234, 179, 8, 0.1);
+      border-color: #eab308;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .status-badge.pending {
+      background: rgba(234, 179, 8, 0.2);
+      color: #eab308;
+    }
+
+    .status-badge.completed {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--success);
+    }
+
+    .status-badge.error {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--error);
+    }
+
+    .copy-btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      background: var(--border);
+      border: none;
+      border-radius: 0.25rem;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .copy-btn:hover {
+      background: var(--primary);
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 1rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .tabs {
+        flex-direction: column;
+      }
+
+      .btn-group {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 ProofPort SDK Demo</h1>
+    <p class="subtitle">ZK Proof 요청 및 검증 테스트</p>
+
+    <!-- Circuit Selection Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-circuit="age_verifier">
+        🎂 Age Verifier
+      </button>
+      <button class="tab" data-circuit="zk_coinbase_attestor">
+        🏦 Coinbase KYC
+      </button>
+    </div>
+
+    <!-- Age Verifier Form -->
+    <div id="age-form" class="card">
+      <h2 class="card-title">📋 Age Verification Request</h2>
+      <div class="info-box">
+        출생년도를 공개하지 않고 나이 요건을 충족하는지 증명합니다.<br>
+        <strong>모든 입력값은 앱으로 전달되어 자동으로 검증이 시작됩니다.</strong>
+      </div>
+
+      <div class="form-group">
+        <label for="birthYear">Birth Year (비공개) *</label>
+        <input type="number" id="birthYear" value="2000" min="1900" max="2025" required>
+        <div class="error-text hidden" id="birthYear-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="currentYear">Current Year *</label>
+        <input type="number" id="currentYear" value="2026" min="2020" max="2100" required>
+        <div class="error-text hidden" id="currentYear-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="minAge">Minimum Age *</label>
+        <input type="number" id="minAge" value="18" min="1" max="150" required>
+        <div class="error-text hidden" id="minAge-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="callbackUrl">Callback URL</label>
+        <input type="url" id="callbackUrl" placeholder="https://your-app.com/verify">
+      </div>
+
+      <div class="btn-group">
+        <button class="btn" onclick="createAgeRequest()">🔗 Generate Deep Link</button>
+        <button class="btn btn-secondary" onclick="createAgeQR()">📱 Generate QR Code</button>
+      </div>
+    </div>
+
+    <!-- Coinbase KYC Form -->
+    <div id="coinbase-form" class="card hidden">
+      <h2 class="card-title">📋 Coinbase KYC Request</h2>
+      <div class="info-box warning">
+        <strong>🔒 Coinbase KYC는 지갑 주소 입력이 필요 없습니다!</strong><br><br>
+        • Deep Link를 통해 앱이 열리면 <strong>앱에서 자동으로 지갑 연결</strong>을 시도합니다.<br>
+        • 연결된 지갑 주소로 Etherscan에서 Coinbase 인증 트랜잭션을 검색합니다.<br>
+        • 사용자의 실제 지갑으로만 증명이 가능합니다.
+      </div>
+
+      <div class="form-group">
+        <label for="coinbaseCallbackUrl">Callback URL</label>
+        <input type="url" id="coinbaseCallbackUrl" placeholder="https://your-app.com/verify">
+      </div>
+
+      <div class="form-group">
+        <label for="coinbaseMessage">사용자에게 표시할 메시지 (선택)</label>
+        <input type="text" id="coinbaseMessage" placeholder="예: 서비스 이용을 위해 Coinbase 본인인증이 필요합니다.">
+      </div>
+
+      <div class="btn-group">
+        <button class="btn" onclick="createCoinbaseRequest()">🔗 Generate Deep Link</button>
+        <button class="btn btn-secondary" onclick="createCoinbaseQR()">📱 Generate QR Code</button>
+      </div>
+    </div>
+
+    <!-- Generated Request -->
+    <div id="request-result" class="card hidden">
+      <h2 class="card-title">📤 Generated Request</h2>
+
+      <div style="margin-bottom: 1rem;">
+        <span class="status-badge pending" id="request-status">Pending</span>
+        <span style="margin-left: 0.5rem; color: var(--text-muted); font-size: 0.875rem;">
+          Request ID: <code id="request-id"></code>
+        </span>
+        <span style="margin-left: 0.5rem; color: var(--text-muted); font-size: 0.875rem;">
+          Circuit: <code id="request-circuit"></code>
+        </span>
+      </div>
+
+      <!-- QR Code Display -->
+      <div id="qr-display" class="qr-container hidden">
+        <img id="qr-image" alt="QR Code">
+        <p class="qr-hint">ProofPort 앱으로 스캔하세요<br><small>앱에서 자동으로 검증이 시작됩니다</small></p>
+      </div>
+
+      <!-- Deep Link Display -->
+      <div id="deeplink-display" class="hidden">
+        <div class="btn-group" style="margin: 0;">
+          <button class="btn" onclick="openDeepLink()">📱 앱에서 열기</button>
+          <button class="copy-btn" onclick="copyDeepLink()">📋 복사</button>
+        </div>
+        <div class="deeplink-url" id="deeplink-url"></div>
+      </div>
+    </div>
+
+    <!-- Proof Verification -->
+    <div id="verify-section" class="card">
+      <h2 class="card-title">✅ Proof Verification</h2>
+      <div class="info-box">
+        앱에서 생성된 Proof를 여기에 붙여넣어 검증하세요.<br>
+        Callback URL로 전달된 응답은 자동으로 처리됩니다.
+      </div>
+
+      <div class="form-group">
+        <label for="proofInput">Proof (hex)</label>
+        <input type="text" id="proofInput" placeholder="0x...">
+      </div>
+
+      <div class="form-group">
+        <label for="publicInputsInput">Public Inputs (comma separated)</label>
+        <input type="text" id="publicInputsInput" placeholder="0x..., 0x...">
+      </div>
+
+      <div class="form-group">
+        <label for="verifyCircuit">Circuit</label>
+        <select id="verifyCircuit">
+          <option value="age_verifier">Age Verifier</option>
+          <option value="zk_coinbase_attestor">Coinbase KYC</option>
+        </select>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn" onclick="verifyProofOnChain()">🔗 On-chain 검증 (Sepolia)</button>
+      </div>
+
+      <div id="verify-result" class="hidden"></div>
+    </div>
+
+    <!-- Logs -->
+    <div class="card">
+      <h2 class="card-title">📝 Logs</h2>
+      <div id="logs" style="font-family: monospace; font-size: 0.75rem; max-height: 200px; overflow-y: auto; background: var(--bg); padding: 1rem; border-radius: 0.5rem;">
+        <div style="color: var(--text-muted);">Ready...</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const DEFAULT_SCHEME = 'zkproofport';
+    let currentRequest = null;
+    let currentDeepLink = null;
+    let currentCircuit = 'age_verifier';
+
+    // Utility functions
+    function generateRequestId() {
+      const timestamp = Date.now().toString(36);
+      const random = Math.random().toString(36).substring(2, 10);
+      return `req-${timestamp}-${random}`;
+    }
+
+    function encodeData(data) {
+      const json = JSON.stringify(data);
+      // UTF-8 문자열을 먼저 percent encoding 후 btoa 적용 (한글 등 지원)
+      const utf8Encoded = encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (_, p1) =>
+        String.fromCharCode(parseInt(p1, 16))
+      );
+      return btoa(utf8Encoded)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    }
+
+    function buildProofRequestUrl(request) {
+      const encoded = encodeData(request);
+      return `${DEFAULT_SCHEME}://proof-request?data=${encoded}`;
+    }
+
+    function log(message, type = 'info') {
+      const logsDiv = document.getElementById('logs');
+      const colors = {
+        info: 'var(--text-muted)',
+        success: 'var(--success)',
+        error: 'var(--error)',
+        warning: '#eab308'
+      };
+      const time = new Date().toLocaleTimeString();
+      logsDiv.innerHTML += `<div style="color: ${colors[type]}">[${time}] ${message}</div>`;
+      logsDiv.scrollTop = logsDiv.scrollHeight;
+    }
+
+    function clearError(fieldId) {
+      const input = document.getElementById(fieldId);
+      const errorDiv = document.getElementById(`${fieldId}-error`);
+      if (input) input.classList.remove('error');
+      if (errorDiv) {
+        errorDiv.classList.add('hidden');
+        errorDiv.textContent = '';
+      }
+    }
+
+    function showError(fieldId, message) {
+      const input = document.getElementById(fieldId);
+      const errorDiv = document.getElementById(`${fieldId}-error`);
+      if (input) input.classList.add('error');
+      if (errorDiv) {
+        errorDiv.classList.remove('hidden');
+        errorDiv.textContent = message;
+      }
+    }
+
+    // Clear generated request when switching tabs
+    function clearRequestResult() {
+      currentRequest = null;
+      currentDeepLink = null;
+      const resultDiv = document.getElementById('request-result');
+      resultDiv.classList.add('hidden');
+      document.getElementById('qr-display').classList.add('hidden');
+      document.getElementById('deeplink-display').classList.add('hidden');
+      document.getElementById('request-status').textContent = 'Pending';
+      document.getElementById('request-status').className = 'status-badge pending';
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        currentCircuit = tab.dataset.circuit;
+        document.getElementById('age-form').classList.toggle('hidden', currentCircuit !== 'age_verifier');
+        document.getElementById('coinbase-form').classList.toggle('hidden', currentCircuit !== 'zk_coinbase_attestor');
+
+        // Clear previous request when switching tabs
+        clearRequestResult();
+
+        log(`Switched to ${currentCircuit} circuit`);
+      });
+    });
+
+    // Validate Age Verifier inputs
+    function validateAgeInputs() {
+      let valid = true;
+
+      const birthYear = parseInt(document.getElementById('birthYear').value);
+      const currentYear = parseInt(document.getElementById('currentYear').value);
+      const minAge = parseInt(document.getElementById('minAge').value);
+
+      clearError('birthYear');
+      clearError('currentYear');
+      clearError('minAge');
+
+      if (!birthYear || birthYear < 1900 || birthYear > 2025) {
+        showError('birthYear', '1900-2025 사이의 값을 입력하세요');
+        valid = false;
+      }
+
+      if (!currentYear || currentYear < 2020 || currentYear > 2100) {
+        showError('currentYear', '2020-2100 사이의 값을 입력하세요');
+        valid = false;
+      }
+
+      if (!minAge || minAge < 1 || minAge > 150) {
+        showError('minAge', '1-150 사이의 값을 입력하세요');
+        valid = false;
+      }
+
+      if (valid && (currentYear - birthYear) < minAge) {
+        showError('birthYear', `현재 나이(${currentYear - birthYear})가 최소 나이(${minAge})보다 작습니다`);
+        valid = false;
+      }
+
+      return valid;
+    }
+
+    // Age Verifier Request
+    window.createAgeRequest = function() {
+      if (!validateAgeInputs()) {
+        log('입력값을 확인해주세요', 'error');
+        return;
+      }
+
+      const request = {
+        requestId: generateRequestId(),
+        circuit: 'age_verifier',
+        inputs: {
+          birthYear: parseInt(document.getElementById('birthYear').value),
+          currentYear: parseInt(document.getElementById('currentYear').value),
+          minAge: parseInt(document.getElementById('minAge').value)
+        },
+        callbackUrl: document.getElementById('callbackUrl').value || window.location.href,
+        dappName: 'ProofPort Demo',
+        message: '나이 검증이 필요합니다. 확인 후 자동으로 증명이 생성됩니다.',
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 600000
+      };
+
+      currentRequest = request;
+      currentDeepLink = buildProofRequestUrl(request);
+
+      showRequestResult(request, currentDeepLink, false);
+      log(`Created age verification request: ${request.requestId}`, 'success');
+    };
+
+    window.createAgeQR = async function() {
+      if (!validateAgeInputs()) {
+        log('입력값을 확인해주세요', 'error');
+        return;
+      }
+
+      const request = {
+        requestId: generateRequestId(),
+        circuit: 'age_verifier',
+        inputs: {
+          birthYear: parseInt(document.getElementById('birthYear').value),
+          currentYear: parseInt(document.getElementById('currentYear').value),
+          minAge: parseInt(document.getElementById('minAge').value)
+        },
+        callbackUrl: document.getElementById('callbackUrl').value || window.location.href,
+        dappName: 'ProofPort Demo',
+        message: '나이 검증이 필요합니다. 확인 후 자동으로 증명이 생성됩니다.',
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 600000
+      };
+
+      currentRequest = request;
+      currentDeepLink = buildProofRequestUrl(request);
+
+      await showRequestResult(request, currentDeepLink, true);
+      log(`Created QR code for age verification: ${request.requestId}`, 'success');
+    };
+
+    // Coinbase KYC Request (지갑 주소 입력 불필요!)
+    window.createCoinbaseRequest = function() {
+      const request = {
+        requestId: generateRequestId(),
+        circuit: 'zk_coinbase_attestor',
+        inputs: {
+          // 지갑 주소 없음! 앱에서 연결하여 가져옴
+        },
+        callbackUrl: document.getElementById('coinbaseCallbackUrl').value || window.location.href,
+        dappName: 'ProofPort Demo',
+        message: document.getElementById('coinbaseMessage').value || 'Coinbase 본인인증을 증명해주세요. 앱에서 지갑을 연결하면 자동으로 검증이 시작됩니다.',
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 600000
+      };
+
+      currentRequest = request;
+      currentDeepLink = buildProofRequestUrl(request);
+
+      showRequestResult(request, currentDeepLink, false);
+      log(`Created Coinbase KYC request: ${request.requestId}`, 'success');
+      log('앱에서 지갑 연결 후 자동으로 검증이 시작됩니다', 'info');
+    };
+
+    window.createCoinbaseQR = async function() {
+      const request = {
+        requestId: generateRequestId(),
+        circuit: 'zk_coinbase_attestor',
+        inputs: {
+          // 지갑 주소 없음! 앱에서 연결하여 가져옴
+        },
+        callbackUrl: document.getElementById('coinbaseCallbackUrl').value || window.location.href,
+        dappName: 'ProofPort Demo',
+        message: document.getElementById('coinbaseMessage').value || 'Coinbase 본인인증을 증명해주세요. 앱에서 지갑을 연결하면 자동으로 검증이 시작됩니다.',
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 600000
+      };
+
+      currentRequest = request;
+      currentDeepLink = buildProofRequestUrl(request);
+
+      await showRequestResult(request, currentDeepLink, true);
+      log(`Created QR code for Coinbase KYC: ${request.requestId}`, 'success');
+      log('앱에서 지갑 연결 후 자동으로 검증이 시작됩니다', 'info');
+    };
+
+    async function showRequestResult(request, deepLink, showQR) {
+      const resultDiv = document.getElementById('request-result');
+      resultDiv.classList.remove('hidden');
+
+      document.getElementById('request-id').textContent = request.requestId;
+      document.getElementById('request-circuit').textContent = request.circuit;
+      document.getElementById('request-status').textContent = 'Pending';
+      document.getElementById('request-status').className = 'status-badge pending';
+
+      const qrDisplay = document.getElementById('qr-display');
+      const deeplinkDisplay = document.getElementById('deeplink-display');
+
+      if (showQR) {
+        const QRCode = await import('https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm');
+        const qrDataUrl = await QRCode.toDataURL(deepLink, {
+          width: 250,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' }
+        });
+        document.getElementById('qr-image').src = qrDataUrl;
+        qrDisplay.classList.remove('hidden');
+        deeplinkDisplay.classList.add('hidden');
+      } else {
+        document.getElementById('deeplink-url').textContent = deepLink;
+        deeplinkDisplay.classList.remove('hidden');
+        qrDisplay.classList.add('hidden');
+      }
+    }
+
+    window.openDeepLink = function() {
+      if (currentDeepLink) {
+        log(`Opening deep link: ${currentDeepLink.substring(0, 50)}...`);
+        window.location.href = currentDeepLink;
+      }
+    };
+
+    window.copyDeepLink = function() {
+      if (currentDeepLink) {
+        navigator.clipboard.writeText(currentDeepLink);
+        log('Deep link copied to clipboard', 'success');
+      }
+    };
+
+    // On-chain verification
+    window.verifyProofOnChain = async function() {
+      const proof = document.getElementById('proofInput').value;
+      const publicInputsStr = document.getElementById('publicInputsInput').value;
+      const circuit = document.getElementById('verifyCircuit').value;
+
+      if (!proof) {
+        log('Please enter proof', 'error');
+        return;
+      }
+
+      const publicInputs = publicInputsStr.split(',').map(s => s.trim()).filter(s => s);
+
+      log(`Starting on-chain verification for ${circuit}...`);
+
+      const verifierAddresses = {
+        age_verifier: '0x33316f0A1F6638AbC8D5a6aCce5a1cF13427A0c9',
+        zk_coinbase_attestor: '0x121632902482B658e0F2D055126dBe977deb9FC1'
+      };
+
+      try {
+        const { ethers } = await import('https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.esm.min.js');
+
+        const provider = new ethers.providers.JsonRpcProvider(
+          'https://sepolia.infura.io/v3/2fe2d28467784ababcae918bb18b4bf6'
+        );
+
+        const contract = new ethers.Contract(
+          verifierAddresses[circuit],
+          ['function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool)'],
+          provider
+        );
+
+        const publicInputsBytes32 = publicInputs.map(input => {
+          const hex = input.startsWith('0x') ? input : `0x${input}`;
+          return ethers.utils.hexZeroPad(hex, 32);
+        });
+
+        log(`Calling verifier contract at ${verifierAddresses[circuit]}...`);
+
+        const isValid = await contract.verify(proof, publicInputsBytes32);
+
+        const resultDiv = document.getElementById('verify-result');
+        resultDiv.classList.remove('hidden');
+
+        if (isValid) {
+          resultDiv.innerHTML = `
+            <div class="result success">
+              <div class="result-title">✅ Verification Successful</div>
+              <p>The proof is valid on Sepolia testnet.</p>
+              <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">
+                Verifier: ${verifierAddresses[circuit]}
+              </p>
+            </div>
+          `;
+          log('Proof verified successfully!', 'success');
+        } else {
+          resultDiv.innerHTML = `
+            <div class="result error">
+              <div class="result-title">❌ Verification Failed</div>
+              <p>The proof is invalid.</p>
+            </div>
+          `;
+          log('Proof verification failed', 'error');
+        }
+      } catch (error) {
+        log(`Verification error: ${error.message}`, 'error');
+        const resultDiv = document.getElementById('verify-result');
+        resultDiv.classList.remove('hidden');
+        resultDiv.innerHTML = `
+          <div class="result error">
+            <div class="result-title">❌ Error</div>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    };
+
+    // Check for callback response on page load
+    function checkCallbackResponse() {
+      const params = new URLSearchParams(window.location.search);
+      const requestId = params.get('requestId');
+      const status = params.get('status');
+
+      if (requestId && status) {
+        log(`Received callback response: ${status}`, status === 'completed' ? 'success' : 'error');
+
+        const resultDiv = document.getElementById('request-result');
+        resultDiv.classList.remove('hidden');
+        document.getElementById('request-id').textContent = requestId;
+
+        if (status === 'completed') {
+          const proof = params.get('proof');
+          const publicInputs = params.get('publicInputs');
+          const circuit = params.get('circuit');
+
+          if (proof) {
+            document.getElementById('proofInput').value = proof;
+          }
+          if (publicInputs) {
+            document.getElementById('publicInputsInput').value = publicInputs;
+          }
+          if (circuit) {
+            document.getElementById('verifyCircuit').value = circuit;
+            document.getElementById('request-circuit').textContent = circuit;
+          }
+
+          log(`Proof received: ${proof?.substring(0, 50)}...`, 'success');
+
+          document.getElementById('request-status').textContent = 'Completed';
+          document.getElementById('request-status').className = 'status-badge completed';
+        } else if (status === 'error') {
+          const error = params.get('error');
+          log(`Error from app: ${error}`, 'error');
+
+          document.getElementById('request-status').textContent = 'Error';
+          document.getElementById('request-status').className = 'status-badge error';
+        } else if (status === 'cancelled') {
+          log('Request was cancelled by user', 'warning');
+
+          document.getElementById('request-status').textContent = 'Cancelled';
+          document.getElementById('request-status').className = 'status-badge error';
+        }
+
+        // Clean URL
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+
+    // Initialize
+    checkCallbackResponse();
+    log('ProofPort SDK Demo initialized', 'info');
+  </script>
+</body>
+</html>

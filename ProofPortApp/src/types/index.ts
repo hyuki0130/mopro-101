@@ -1,9 +1,20 @@
+import type {ProofRequest} from '../utils/deeplink';
+
 export type RootStackParamList = {
   Main: undefined;
-  AgeVerifier: undefined;
-  CoinbaseKyc: undefined;
+  AgeVerifier: {proofRequest?: ProofRequest} | undefined;
+  CoinbaseKyc: {proofRequest?: ProofRequest} | undefined;
   PrivyWallet: undefined;
 };
+
+// Re-export deep link types for convenience
+export type {
+  ProofRequest,
+  ProofResponse,
+  CircuitType,
+  AgeVerifierInputs as DeepLinkAgeVerifierInputs,
+  CoinbaseKycInputs as DeepLinkCoinbaseKycInputs,
+} from '../utils/deeplink';
 
 export interface AgeVerifierInputs {
   birthYear: string;

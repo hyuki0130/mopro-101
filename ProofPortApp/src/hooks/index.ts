@@ -7,5 +7,6 @@ export type {UseCoinbaseKycReturn, CoinbaseKycInputs} from './useCoinbaseKyc';
 export {AUTHORIZED_SIGNERS} from '../utils/coinbaseKyc';
 export {usePrivyWallet} from './usePrivyWallet';
 export type {PrivyConnectionStatus} from './usePrivyWallet';
+export {useDeepLink} from './useDeepLink';
 // Deprecated: use usePrivyWallet instead
 export {useWalletConnect} from './useWalletConnect';
