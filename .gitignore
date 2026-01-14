@@ -153,3 +153,6 @@ ProofPortApp/ios/ProofPortApp/*.vk
 out/
 cache/
 broadcast/
+
+# Demo server data
+sdk/demo/results.json
