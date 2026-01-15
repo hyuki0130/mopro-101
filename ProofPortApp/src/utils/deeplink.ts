@@ -34,15 +34,32 @@ export interface ProofRequest {
   expiresAt?: number;
 }
 
+export type VerificationType = 'on-chain' | 'off-chain';
+
 export interface ProofResponse {
   requestId: string;
   circuit: CircuitType;
   status: 'completed' | 'error' | 'cancelled';
+
+  // Verification details
+  verificationType?: VerificationType;
+  verificationResult?: boolean;
+
+  // Timing information
+  startedAt?: number;
+  completedAt?: number;
+  expiresAt?: number;
+
+  // Proof data
   proof?: string;
   publicInputs?: string[];
   numPublicInputs?: number;
+
+  // Original inputs (for verification)
+  inputs?: CircuitInputs;
+
+  // Error details
   error?: string;
-  timestamp?: number;
 }
 
 const SCHEME = 'zkproofport';
@@ -222,8 +239,8 @@ export function buildCallbackUrl(
     if (response.numPublicInputs !== undefined) {
       url.searchParams.set('numPublicInputs', response.numPublicInputs.toString());
     }
-    if (response.timestamp) {
-      url.searchParams.set('timestamp', response.timestamp.toString());
+    if (response.completedAt) {
+      url.searchParams.set('completedAt', response.completedAt.toString());
     }
   } else if (response.status === 'error' && response.error) {
     url.searchParams.set('error', response.error);

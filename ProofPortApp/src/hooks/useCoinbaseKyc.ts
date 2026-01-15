@@ -69,7 +69,7 @@ export interface UseCoinbaseKycReturn {
     addLog: (msg: string) => void,
   ) => Promise<void>;
   verifyProofOffChain: (addLog: (msg: string) => void) => Promise<void>;
-  verifyProofOnChain: (addLog: (msg: string) => void) => Promise<void>;
+  verifyProofOnChain: (addLog: (msg: string) => void) => Promise<boolean>;
   validateTransaction: (
     rawTx: string,
     userAddress: string,
@@ -446,10 +446,10 @@ export const useCoinbaseKyc = (): UseCoinbaseKycReturn => {
    * Verify proof on-chain using the deployed Verifier contract on Sepolia
    */
   const verifyProofOnChain = useCallback(
-    async (addLog: (msg: string) => void) => {
+    async (addLog: (msg: string) => void): Promise<boolean> => {
       if (!parsedProof) {
         addLog('Please generate proof first');
-        return;
+        return false;
       }
 
       setIsLoading(true);
@@ -496,6 +496,8 @@ export const useCoinbaseKyc = (): UseCoinbaseKycReturn => {
           addLog('Proof rejected by on-chain verifier');
           setStatus('Proof invalid (on-chain)');
         }
+
+        return isValid;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         addLog(`On-chain verification error: ${errorMessage}`);
@@ -507,6 +509,7 @@ export const useCoinbaseKyc = (): UseCoinbaseKycReturn => {
         }
 
         setStatus('Error: on-chain verification failed');
+        return false;
       } finally {
         setIsLoading(false);
       }

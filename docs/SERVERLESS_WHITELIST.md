@@ -12,9 +12,11 @@ ZKProofPort 앱에서 서버 개입 없이 특정 유저들만 화이트리스�
 4. [방식 2: SBT (Soulbound Token) 기반](#방식-2-sbt-soulbound-token-기반)
 5. [방식 3: Semaphore 프로토콜 (ZK 그룹 멤버십)](#방식-3-semaphore-프로토콜-zk-그룹-멤버십)
 6. [방식 4: 서명 기반 오프체인 화이트리스트](#방식-4-서명-기반-오프체인-화이트리스트)
-7. [P2P 직접 통신 (완전 서버리스)](#p2p-직접-통신-완전-서버리스)
-8. [구현 권장 사항](#구현-권장-사항)
-9. [참고 자료](#참고-자료)
+7. [B2B 비즈니스 모델: 업체 클라이언트 검증](#b2b-비즈니스-모델-업체-클라이언트-검증)
+8. [IPFS vs 온체인 저장소 보안 비교](#ipfs-vs-온체인-저장소-보안-비교)
+9. [P2P 직접 통신 (완전 서버리스)](#p2p-직접-통신-완전-서버리스)
+10. [구현 권장 사항](#구현-권장-사항)
+11. [참고 자료](#참고-자료)
 
 ---
 
@@ -713,6 +715,724 @@ async function generateAllSignatures(addresses: string[]) {
 
 ---
 
+## B2B 비즈니스 모델: 업체 클라이언트 검증
+
+ZKProofPort를 **B2B SaaS**로 제공할 때, 개인이 아닌 **업체(Business)**가 클라이언트가 되고, 업체의 고객이 앱을 사용하는 모델입니다.
+
+### 비즈니스 모델 개요
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       B2B 비즈니스 모델 구조                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────┐                                                        │
+│  │   ZKProofPort   │  ← 서비스 제공자 (우리)                                 │
+│  │    운영팀       │                                                        │
+│  └────────┬────────┘                                                        │
+│           │                                                                 │
+│           │ 1. 업체 계약 & 클라이언트 ID 발급                                │
+│           │    - clientId: "company_A"                                      │
+│           │    - publicKey 등록                                             │
+│           │    - privateKey 전달                                            │
+│           │                                                                 │
+│           ▼                                                                 │
+│  ┌─────────────────┐         ┌─────────────────┐                           │
+│  │    업체 A       │         │    업체 B       │  ← 유료 클라이언트 (B2B)   │
+│  │ (게임회사 등)    │         │ (금융서비스 등)  │                           │
+│  └────────┬────────┘         └────────┬────────┘                           │
+│           │                           │                                     │
+│           │ 2. 고객에게 서명된 요청 제공                                     │
+│           │    (업체 privateKey로 서명)                                     │
+│           │                                                                 │
+│           ▼                           ▼                                     │
+│  ┌─────────────────┐         ┌─────────────────┐                           │
+│  │  업체 A의 고객  │         │  업체 B의 고객  │  ← 최종 사용자 (무료)       │
+│  │  (게임 유저)    │         │  (금융 고객)    │                            │
+│  └────────┬────────┘         └────────┬────────┘                           │
+│           │                           │                                     │
+│           │ 3. ZKProofPort 앱 실행                                          │
+│           │    - 업체 서명 검증                                             │
+│           │    - KYC 증명 생성                                              │
+│           │                                                                 │
+│           ▼                           ▼                                     │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                        ZKProofPort App                               │   │
+│  │                                                                       │   │
+│  │  1. 업체 서명 검증 (온체인에서 publicKey 확인)                        │   │
+│  │  2. 유효한 업체인지 확인 (활성화 상태, 만료일)                         │   │
+│  │  3. KYC 증명 생성 허용                                                │   │
+│  │                                                                       │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  💰 수익 모델:                                                              │
+│  - 업체별 월정액 또는 증명 생성 횟수 기반 과금                               │
+│  - 최종 사용자(고객)는 무료로 앱 사용                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 검증 플로우 상세
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       B2B 클라이언트 검증 플로우                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [1단계: 업체 등록 - ZKProofPort 운영]                                       │
+│                                                                             │
+│    업체 A 계약 → clientId: "company_A"                                      │
+│                  publicKey 등록 (온체인)                                    │
+│                  업체에게 privateKey 전달                                   │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [2단계: 업체 서비스에서 고객이 인증 요청]                                    │
+│                                                                             │
+│    업체 A 웹사이트/앱                                                       │
+│         ↓                                                                   │
+│    "KYC 인증하기" 버튼 클릭                                                  │
+│         ↓                                                                   │
+│    업체 서버에서 서명 생성:                                                  │
+│    {                                                                        │
+│      clientId: "company_A",                                                 │
+│      timestamp: 1703420000,                                                 │
+│      nonce: "random123",                                                    │
+│      signature: sign(clientId + timestamp + nonce, privateKey)              │
+│    }                                                                        │
+│         ↓                                                                   │
+│    Deep Link로 ZKProofPort 앱 호출                                          │
+│    zkproofport://verify?clientId=company_A&ts=...&nonce=...&sig=...         │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [3단계: ZKProofPort 앱에서 검증]                                            │
+│                                                                             │
+│    1. clientId로 온체인에서 publicKey 조회                                  │
+│    2. signature 검증 (ecrecover로 서명자 확인)                              │
+│    3. timestamp 유효성 검증 (예: 5분 이내)                                  │
+│    4. 업체 상태 확인 (활성화, 만료일)                                        │
+│    5. ✅ 검증 성공 → KYC 증명 생성 허용                                     │
+│       ❌ 검증 실패 → "유효하지 않은 클라이언트" 에러                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 온체인 업체 화이트리스트 컨트랙트
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+/**
+ * @title BusinessWhitelist
+ * @notice B2B 클라이언트(업체) 화이트리스트 관리 컨트랙트
+ * @dev 업체별 publicKey, 활성화 상태, 만료일 관리
+ */
+contract BusinessWhitelist is Ownable {
+    using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
+
+    struct Business {
+        address publicKey;      // 업체의 서명용 주소
+        bool isActive;          // 활성화 상태
+        uint256 expiresAt;      // 계약 만료일 (timestamp)
+        string name;            // 업체명 (optional)
+        uint256 registeredAt;   // 등록일
+    }
+
+    // clientId (bytes32) → Business 정보
+    mapping(bytes32 => Business) public businesses;
+
+    // 등록된 업체 목록 (조회용)
+    bytes32[] public businessIds;
+
+    // 이벤트
+    event BusinessRegistered(
+        bytes32 indexed clientId,
+        address publicKey,
+        string name,
+        uint256 expiresAt
+    );
+    event BusinessDeactivated(bytes32 indexed clientId);
+    event BusinessReactivated(bytes32 indexed clientId);
+    event BusinessExtended(bytes32 indexed clientId, uint256 newExpiresAt);
+
+    constructor() Ownable(msg.sender) {}
+
+    /**
+     * @notice 새 업체 등록 (ZKProofPort 운영팀만)
+     * @param clientId 업체 식별자 (keccak256(업체명) 등)
+     * @param publicKey 업체의 서명용 공개키 주소
+     * @param name 업체명
+     * @param validDays 계약 유효 기간 (일)
+     */
+    function registerBusiness(
+        bytes32 clientId,
+        address publicKey,
+        string calldata name,
+        uint256 validDays
+    ) external onlyOwner {
+        require(businesses[clientId].publicKey == address(0), "Already registered");
+        require(publicKey != address(0), "Invalid public key");
+
+        uint256 expiresAt = block.timestamp + (validDays * 1 days);
+
+        businesses[clientId] = Business({
+            publicKey: publicKey,
+            isActive: true,
+            expiresAt: expiresAt,
+            name: name,
+            registeredAt: block.timestamp
+        });
+
+        businessIds.push(clientId);
+
+        emit BusinessRegistered(clientId, publicKey, name, expiresAt);
+    }
+
+    /**
+     * @notice 업체 비활성화 (계약 해지 등)
+     */
+    function deactivateBusiness(bytes32 clientId) external onlyOwner {
+        require(businesses[clientId].publicKey != address(0), "Not registered");
+        businesses[clientId].isActive = false;
+        emit BusinessDeactivated(clientId);
+    }
+
+    /**
+     * @notice 업체 재활성화
+     */
+    function reactivateBusiness(bytes32 clientId) external onlyOwner {
+        require(businesses[clientId].publicKey != address(0), "Not registered");
+        businesses[clientId].isActive = true;
+        emit BusinessReactivated(clientId);
+    }
+
+    /**
+     * @notice 계약 연장
+     */
+    function extendContract(bytes32 clientId, uint256 additionalDays) external onlyOwner {
+        require(businesses[clientId].publicKey != address(0), "Not registered");
+
+        uint256 currentExpiry = businesses[clientId].expiresAt;
+        uint256 baseTime = currentExpiry > block.timestamp ? currentExpiry : block.timestamp;
+        uint256 newExpiresAt = baseTime + (additionalDays * 1 days);
+
+        businesses[clientId].expiresAt = newExpiresAt;
+
+        emit BusinessExtended(clientId, newExpiresAt);
+    }
+
+    /**
+     * @notice 업체 유효성 확인
+     * @return 업체가 유효한지 여부 (등록됨 + 활성화 + 만료되지 않음)
+     */
+    function isValidBusiness(bytes32 clientId) public view returns (bool) {
+        Business memory b = businesses[clientId];
+        return b.publicKey != address(0) &&
+               b.isActive &&
+               block.timestamp < b.expiresAt;
+    }
+
+    /**
+     * @notice 업체 publicKey 조회
+     */
+    function getBusinessPublicKey(bytes32 clientId) external view returns (address) {
+        return businesses[clientId].publicKey;
+    }
+
+    /**
+     * @notice 업체 상세 정보 조회
+     */
+    function getBusinessInfo(bytes32 clientId) external view returns (
+        address publicKey,
+        bool isActive,
+        uint256 expiresAt,
+        string memory name,
+        uint256 registeredAt,
+        bool isCurrentlyValid
+    ) {
+        Business memory b = businesses[clientId];
+        return (
+            b.publicKey,
+            b.isActive,
+            b.expiresAt,
+            b.name,
+            b.registeredAt,
+            isValidBusiness(clientId)
+        );
+    }
+
+    /**
+     * @notice 업체 서명 검증 (앱에서 호출)
+     * @param clientId 업체 ID
+     * @param timestamp 서명 시점
+     * @param nonce 리플레이 방지용 난수
+     * @param signature 업체의 서명
+     * @return valid 서명이 유효한지 여부
+     */
+    function verifyBusinessSignature(
+        bytes32 clientId,
+        uint256 timestamp,
+        bytes32 nonce,
+        bytes calldata signature
+    ) external view returns (bool valid) {
+        // 1. 업체 유효성 확인
+        if (!isValidBusiness(clientId)) {
+            return false;
+        }
+
+        // 2. timestamp 유효성 (5분 이내)
+        if (block.timestamp > timestamp + 5 minutes) {
+            return false;
+        }
+
+        // 3. 서명 검증
+        bytes32 messageHash = keccak256(abi.encodePacked(
+            clientId,
+            timestamp,
+            nonce
+        ));
+
+        bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
+        address recoveredSigner = ethSignedMessageHash.recover(signature);
+
+        // 4. 서명자가 등록된 publicKey와 일치하는지 확인
+        return recoveredSigner == businesses[clientId].publicKey;
+    }
+
+    /**
+     * @notice 등록된 업체 수 조회
+     */
+    function getBusinessCount() external view returns (uint256) {
+        return businessIds.length;
+    }
+}
+```
+
+### 앱에서 업체 검증 로직 (TypeScript)
+
+```typescript
+// business-verification.ts
+import { ethers } from 'ethers';
+
+// Deep Link로 전달받는 파라미터
+interface BusinessRequest {
+  clientId: string;      // 업체 ID (예: "company_A")
+  timestamp: number;     // 서명 시점 (Unix timestamp)
+  nonce: string;         // 랜덤 문자열
+  signature: string;     // 업체의 서명
+}
+
+const WHITELIST_CONTRACT = '0x...';  // BusinessWhitelist 컨트랙트 주소
+const WHITELIST_ABI = [
+  'function isValidBusiness(bytes32) view returns (bool)',
+  'function getBusinessPublicKey(bytes32) view returns (address)',
+  'function verifyBusinessSignature(bytes32, uint256, bytes32, bytes) view returns (bool)',
+];
+
+/**
+ * 업체 요청 검증 (앱에서 호출)
+ */
+export async function verifyBusinessRequest(
+  request: BusinessRequest,
+  provider: ethers.Provider
+): Promise<{ valid: boolean; error?: string }> {
+  const { clientId, timestamp, nonce, signature } = request;
+
+  try {
+    // 1. timestamp 검증 (로컬에서 먼저 체크)
+    const now = Math.floor(Date.now() / 1000);
+    if (now - timestamp > 300) {  // 5분
+      return { valid: false, error: 'Request expired' };
+    }
+
+    const contract = new ethers.Contract(
+      WHITELIST_CONTRACT,
+      WHITELIST_ABI,
+      provider
+    );
+
+    // 2. clientId를 bytes32로 변환
+    const clientIdHash = ethers.keccak256(ethers.toUtf8Bytes(clientId));
+
+    // 3. 온체인에서 업체 유효성 확인
+    const isValid = await contract.isValidBusiness(clientIdHash);
+    if (!isValid) {
+      return { valid: false, error: 'Invalid or expired business' };
+    }
+
+    // 4. 서명 검증 (온체인 또는 오프체인)
+    // 방법 A: 온체인 검증 (가스 비용 없음, view 함수)
+    const nonceHash = ethers.keccak256(ethers.toUtf8Bytes(nonce));
+    const signatureValid = await contract.verifyBusinessSignature(
+      clientIdHash,
+      timestamp,
+      nonceHash,
+      signature
+    );
+
+    if (!signatureValid) {
+      return { valid: false, error: 'Invalid signature' };
+    }
+
+    return { valid: true };
+
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    return { valid: false, error: msg };
+  }
+}
+
+/**
+ * 오프체인 서명 검증 (가스 비용 완전 제로)
+ */
+export async function verifyBusinessRequestOffchain(
+  request: BusinessRequest,
+  provider: ethers.Provider
+): Promise<{ valid: boolean; error?: string }> {
+  const { clientId, timestamp, nonce, signature } = request;
+
+  try {
+    // 1. timestamp 검증
+    const now = Math.floor(Date.now() / 1000);
+    if (now - timestamp > 300) {
+      return { valid: false, error: 'Request expired' };
+    }
+
+    const contract = new ethers.Contract(
+      WHITELIST_CONTRACT,
+      WHITELIST_ABI,
+      provider
+    );
+
+    const clientIdHash = ethers.keccak256(ethers.toUtf8Bytes(clientId));
+
+    // 2. 업체 유효성 및 publicKey 조회
+    const [isValid, publicKey] = await Promise.all([
+      contract.isValidBusiness(clientIdHash),
+      contract.getBusinessPublicKey(clientIdHash),
+    ]);
+
+    if (!isValid) {
+      return { valid: false, error: 'Invalid or expired business' };
+    }
+
+    // 3. 오프체인 서명 검증
+    const nonceHash = ethers.keccak256(ethers.toUtf8Bytes(nonce));
+    const messageHash = ethers.keccak256(
+      ethers.solidityPacked(
+        ['bytes32', 'uint256', 'bytes32'],
+        [clientIdHash, timestamp, nonceHash]
+      )
+    );
+
+    const recoveredAddress = ethers.verifyMessage(
+      ethers.getBytes(messageHash),
+      signature
+    );
+
+    if (recoveredAddress.toLowerCase() !== publicKey.toLowerCase()) {
+      return { valid: false, error: 'Invalid signature' };
+    }
+
+    return { valid: true };
+
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    return { valid: false, error: msg };
+  }
+}
+```
+
+### 업체 측 서명 생성 (업체 서버에서 실행)
+
+```typescript
+// business-server.ts (업체 서버 코드)
+import { ethers } from 'ethers';
+
+// 환경변수에서 로드 (절대 노출 금지!)
+const BUSINESS_PRIVATE_KEY = process.env.BUSINESS_PRIVATE_KEY!;
+const CLIENT_ID = process.env.CLIENT_ID!;  // "company_A"
+
+interface SignedRequest {
+  clientId: string;
+  timestamp: number;
+  nonce: string;
+  signature: string;
+  deepLink: string;
+}
+
+/**
+ * ZKProofPort 앱 호출용 서명된 요청 생성
+ */
+export async function generateSignedRequest(): Promise<SignedRequest> {
+  const wallet = new ethers.Wallet(BUSINESS_PRIVATE_KEY);
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  const nonce = ethers.hexlify(ethers.randomBytes(16));  // 랜덤 nonce
+
+  // 메시지 해시 생성 (컨트랙트와 동일한 방식)
+  const clientIdHash = ethers.keccak256(ethers.toUtf8Bytes(CLIENT_ID));
+  const nonceHash = ethers.keccak256(ethers.toUtf8Bytes(nonce));
+
+  const messageHash = ethers.keccak256(
+    ethers.solidityPacked(
+      ['bytes32', 'uint256', 'bytes32'],
+      [clientIdHash, timestamp, nonceHash]
+    )
+  );
+
+  // 서명 생성
+  const signature = await wallet.signMessage(ethers.getBytes(messageHash));
+
+  // Deep Link URL 생성
+  const params = new URLSearchParams({
+    clientId: CLIENT_ID,
+    ts: timestamp.toString(),
+    nonce: nonce,
+    sig: signature,
+  });
+
+  const deepLink = `zkproofport://verify?${params.toString()}`;
+
+  return {
+    clientId: CLIENT_ID,
+    timestamp,
+    nonce,
+    signature,
+    deepLink,
+  };
+}
+
+// Express.js 예시
+import express from 'express';
+const app = express();
+
+app.get('/api/kyc-link', async (req, res) => {
+  const signedRequest = await generateSignedRequest();
+
+  // QR 코드 생성용 또는 직접 리다이렉트
+  res.json({
+    deepLink: signedRequest.deepLink,
+    expiresIn: 300,  // 5분
+  });
+});
+```
+
+### Deep Link 처리 (React Native 앱)
+
+```typescript
+// useBusinessVerification.ts
+import { useEffect } from 'react';
+import { Linking } from 'react-native';
+import { verifyBusinessRequestOffchain } from './business-verification';
+
+export function useBusinessVerification(
+  provider: ethers.Provider,
+  onVerified: (clientId: string) => void,
+  onError: (error: string) => void
+) {
+  useEffect(() => {
+    const handleDeepLink = async (event: { url: string }) => {
+      const url = new URL(event.url);
+
+      if (url.protocol !== 'zkproofport:' || url.pathname !== '//verify') {
+        return;
+      }
+
+      const params = url.searchParams;
+      const request = {
+        clientId: params.get('clientId') || '',
+        timestamp: parseInt(params.get('ts') || '0', 10),
+        nonce: params.get('nonce') || '',
+        signature: params.get('sig') || '',
+      };
+
+      // 업체 검증
+      const result = await verifyBusinessRequestOffchain(request, provider);
+
+      if (result.valid) {
+        onVerified(request.clientId);
+      } else {
+        onError(result.error || 'Verification failed');
+      }
+    };
+
+    // Deep Link 리스너 등록
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // 앱이 Deep Link로 시작된 경우 처리
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink({ url });
+      }
+    });
+
+    return () => subscription.remove();
+  }, [provider, onVerified, onError]);
+}
+```
+
+### B2B 모델 핵심 포인트
+
+| 항목 | 설명 |
+|------|------|
+| **클라이언트** | 개인이 아닌 업체 (B2B) |
+| **고객 인증** | 불필요 - 업체 서명으로 대체 |
+| **업체 인증** | 서명 기반 (ECDSA) |
+| **화이트리스트** | 온체인 저장 (더 신뢰성) |
+| **리플레이 방지** | timestamp + nonce |
+| **계약 관리** | 스마트 컨트랙트 (만료일, 활성화 상태) |
+| **수익 모델** | 업체별 과금 (월정액 or 사용량 기반) |
+
+---
+
+## IPFS vs 온체인 저장소 보안 비교
+
+화이트리스트 저장 위치에 따른 보안 특성을 비교합니다.
+
+### IPFS 특성
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           IPFS 작동 방식                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────┐                                                        │
+│  │  whitelist.json │                                                        │
+│  │  {              │                                                        │
+│  │    "addresses": │                                                        │
+│  │    ["0xAAA...", │                                                        │
+│  │     "0xBBB..."] │                                                        │
+│  │  }              │                                                        │
+│  └────────┬────────┘                                                        │
+│           │                                                                 │
+│           │ 업로드 (ipfs add)                                               │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                        │
+│  │   Content Hash  │  ← CID (Content Identifier)                           │
+│  │   QmXYZ123...   │    파일 내용의 SHA-256 해시                            │
+│  └─────────────────┘                                                        │
+│                                                                             │
+│  ✅ 장점:                                                                   │
+│  - Content-addressed: 내용이 바뀌면 CID도 바뀜                              │
+│  - Immutable: 한번 업로드된 내용은 변경 불가                                 │
+│  - 변조 시 → CID 불일치 → 앱에서 검증 실패                                  │
+│                                                                             │
+│  ❌ 위험 요소:                                                              │
+│  - Pinning 서비스 다운 시 파일 접근 불가                                    │
+│  - 누구나 같은 CID로 파일 호스팅 가능 (검열 저항)                            │
+│  - 네트워크 지연 발생 가능                                                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 온체인 저장 특성
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        온체인 저장 작동 방식                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────┐                                                        │
+│  │  Smart Contract │                                                        │
+│  │                 │                                                        │
+│  │  businesses:    │                                                        │
+│  │  {              │                                                        │
+│  │    "0xAAA...":  │                                                        │
+│  │    { active,    │                                                        │
+│  │      expiresAt, │                                                        │
+│  │      publicKey }│                                                        │
+│  │  }              │                                                        │
+│  └─────────────────┘                                                        │
+│                                                                             │
+│  ✅ 장점:                                                                   │
+│  - 블록체인 보안 보장 (51% 공격 외에는 변조 불가)                            │
+│  - 항상 가용 (블록체인이 살아있는 한)                                        │
+│  - 투명성: 누구나 검증 가능                                                  │
+│  - 권한 관리: onlyOwner 등으로 수정 권한 제한                                │
+│                                                                             │
+│  ❌ 단점:                                                                   │
+│  - 가스 비용 발생 (B2B라면 충분히 감당 가능)                                 │
+│  - 대량 데이터 저장에 부적합 (비용 문제)                                     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 비교표
+
+| 항목 | IPFS | 온체인 |
+|------|------|--------|
+| **변조 가능성** | 불가 (CID 변경됨) | 불가 (블록체인 보안) |
+| **가용성** | Pinning 의존 | 항상 가용 |
+| **비용** | 무료 (Pinning 제외) | 가스 비용 |
+| **권한 관리** | 없음 | 스마트 컨트랙트로 관리 |
+| **실시간 업데이트** | CID 변경 필요 | 즉시 반영 |
+| **B2B 적합성** | 낮음 | **높음** |
+
+### B2B에서 권장하는 방식
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      B2B 권장: 온체인 + 오프체인 하이브리드                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────┐     ┌───────────────────────────────┐   │
+│  │         온체인 저장            │     │        오프체인 (서명)         │   │
+│  ├───────────────────────────────┤     ├───────────────────────────────┤   │
+│  │ - 업체 publicKey              │     │ - 업체가 생성하는 서명         │   │
+│  │ - 활성화 상태                 │     │ - timestamp + nonce            │   │
+│  │ - 만료일                      │     │ - Deep Link로 전달             │   │
+│  │ - 업체명 (optional)           │     │                                │   │
+│  └───────────────────────────────┘     └───────────────────────────────┘   │
+│                 │                                    │                      │
+│                 └────────────────┬───────────────────┘                      │
+│                                  │                                          │
+│                                  ▼                                          │
+│                    ┌───────────────────────────────┐                       │
+│                    │       ZKProofPort App          │                       │
+│                    │                                │                       │
+│                    │  1. 온체인에서 publicKey 조회  │                       │
+│                    │  2. 오프체인 서명 검증         │                       │
+│                    │  3. 가스 비용 = 0              │                       │
+│                    │                                │                       │
+│                    └───────────────────────────────┘                       │
+│                                                                             │
+│  💡 이 방식의 장점:                                                         │
+│  - 업체 정보는 온체인 (신뢰성, 투명성)                                       │
+│  - 검증은 오프체인 (가스 비용 제로)                                          │
+│  - IPFS 불필요 (다운타임 위험 제거)                                          │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### IPFS "해킹"에 대한 오해
+
+IPFS는 전통적인 의미의 "해킹"이 어렵습니다:
+
+1. **파일 변조 불가**:
+   - IPFS 파일은 내용 해시(CID)로 식별
+   - 내용을 바꾸면 CID도 바뀜
+   - 앱이 특정 CID를 요청하면, 변조된 파일은 CID가 다르므로 무시됨
+
+2. **실제 위험 요소**:
+   - **Pinning 서비스 장애**: Pinata, Infura 등이 다운되면 파일 접근 불가
+   - **네트워크 지연**: P2P 특성상 파일 조회가 느릴 수 있음
+   - **키 관리**: 업데이트 권한을 가진 키가 탈취되면 새 CID로 교체 가능
+
+3. **B2B에서 IPFS를 피하는 이유**:
+   - 가용성 보장이 어려움
+   - 업체 계약 상태 변경 시 CID 업데이트 필요
+   - 온체인이 더 신뢰성 있고 실시간 업데이트 가능
+
+---
+
 ## P2P 직접 통신 (완전 서버리스)
 
 서버 없이 앱 간 직접 통신하는 방법입니다.
@@ -861,10 +1581,43 @@ contract EventBasedVerifier {
 | 프라이버시 최우선 | Semaphore | 익명 검증 |
 | 가스 비용 최소화 | 서명 기반 | 온체인 비용 없음 |
 | 완전 탈중앙화 | Merkle + IPFS | 서버 불필요 |
+| **B2B SaaS 모델** | **온체인 + 서명** | 신뢰성, 계약 관리 용이 |
 
 ### ZKProofPort 권장 구현
 
-**Phase 1: Merkle Tree + IPFS (권장 시작점)**
+**🎯 B2B SaaS 모델 (권장)**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        B2B SaaS 모델 아키텍처                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [온체인: BusinessWhitelist Contract]                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ businesses: {                                                        │   │
+│  │   "company_A": { publicKey, isActive, expiresAt, name }             │   │
+│  │   "company_B": { publicKey, isActive, expiresAt, name }             │   │
+│  │ }                                                                    │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                          │                                                  │
+│                          │ view 함수 (가스 비용 0)                          │
+│                          ▼                                                  │
+│  [ZKProofPort App]                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ 1. Deep Link에서 clientId, signature 추출                           │   │
+│  │ 2. 온체인에서 publicKey 조회                                         │   │
+│  │ 3. 오프체인 서명 검증 (ecrecover)                                    │   │
+│  │ 4. 유효한 업체면 KYC 증명 생성 허용                                  │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  💰 수익 모델: 업체별 월정액 또는 사용량 기반 과금                           │
+│  ✅ 서버 불필요 (온체인 + 서명만 사용)                                       │
+│  ✅ 가스 비용 최소 (업체 등록 시에만 발생)                                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Phase 1: Merkle Tree + IPFS (개인 화이트리스트용)**
 
 ```
 화이트리스트 JSON (IPFS)

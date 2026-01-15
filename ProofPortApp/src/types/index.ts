@@ -12,6 +12,7 @@ export type {
   ProofRequest,
   ProofResponse,
   CircuitType,
+  VerificationType,
   AgeVerifierInputs as DeepLinkAgeVerifierInputs,
   CoinbaseKycInputs as DeepLinkCoinbaseKycInputs,
 } from '../utils/deeplink';

@@ -9,15 +9,25 @@ import {
   sendProofResponse,
   type ProofRequest,
   type ProofResponse,
+  type VerificationType,
 } from '../utils/deeplink';
+
+/** Options for sending proof response */
+export interface SendProofOptions {
+  proof: string;
+  publicInputs: string[];
+  numPublicInputs: number;
+  verificationType: VerificationType;
+  verificationResult: boolean;
+  startedAt: number;
+  completedAt: number;
+}
 
 interface UseDeepLinkUtilsResult {
   /** Send completed proof back to dapp */
   sendProof: (
     request: ProofRequest,
-    proof: string,
-    publicInputs: string[],
-    numPublicInputs: number,
+    options: SendProofOptions,
   ) => Promise<boolean>;
   /** Send error response to dapp */
   sendError: (request: ProofRequest, error: string) => Promise<boolean>;
@@ -29,9 +39,7 @@ export function useDeepLink(): UseDeepLinkUtilsResult {
   const sendProof = useCallback(
     async (
       request: ProofRequest,
-      proof: string,
-      publicInputs: string[],
-      numPublicInputs: number,
+      options: SendProofOptions,
     ): Promise<boolean> => {
       console.log('[DeepLink] Sending proof for request:', request.requestId);
 
@@ -39,10 +47,23 @@ export function useDeepLink(): UseDeepLinkUtilsResult {
         requestId: request.requestId,
         circuit: request.circuit,
         status: 'completed',
-        proof,
-        publicInputs,
-        numPublicInputs,
-        timestamp: Date.now(),
+
+        // Verification details
+        verificationType: options.verificationType,
+        verificationResult: options.verificationResult,
+
+        // Timing information
+        startedAt: options.startedAt,
+        completedAt: options.completedAt,
+        expiresAt: request.expiresAt,
+
+        // Proof data
+        proof: options.proof,
+        publicInputs: options.publicInputs,
+        numPublicInputs: options.numPublicInputs,
+
+        // Original inputs (for verification)
+        inputs: request.inputs,
       };
 
       return await sendProofResponse(response, request.callbackUrl);

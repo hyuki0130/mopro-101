@@ -451,16 +451,94 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
   <script type="module">
     const DEFAULT_SCHEME = 'zkproofport';
     const SERVER_URL = window.location.origin; // Same origin as server
     const CALLBACK_URL = `${SERVER_URL}/callback`;
     const POLL_INTERVAL = 2000; // Poll every 2 seconds
 
+    // Get local network IP for QR code callbacks (mobile devices can't reach localhost)
+    let LOCAL_IP_CALLBACK_URL = CALLBACK_URL;
+
+    // Try to detect if we need to use a different callback URL for QR codes
+    function getQRCallbackUrl() {
+      // If user specified a custom callback URL, use that
+      const customUrl = document.getElementById('callbackUrl')?.value ||
+                        document.getElementById('coinbaseCallbackUrl')?.value;
+      if (customUrl) return customUrl;
+
+      // If accessing via IP already, use the same
+      if (!window.location.hostname.includes('localhost') &&
+          !window.location.hostname.includes('127.0.0.1')) {
+        return CALLBACK_URL;
+      }
+
+      // Otherwise show warning about localhost
+      return null;
+    }
+
+    // Get local IP hint (best effort)
+    async function getLocalIPHint() {
+      try {
+        // Try WebRTC method to get local IP
+        const pc = new RTCPeerConnection({ iceServers: [] });
+        pc.createDataChannel('');
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        return new Promise((resolve) => {
+          pc.onicecandidate = (e) => {
+            if (e.candidate) {
+              const match = e.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
+              if (match && !match[1].startsWith('127.')) {
+                pc.close();
+                resolve(match[1]);
+              }
+            }
+          };
+          // Fallback after timeout
+          setTimeout(() => {
+            pc.close();
+            resolve('<YOUR_LOCAL_IP>');
+          }, 1000);
+        });
+      } catch {
+        return '<YOUR_LOCAL_IP>';
+      }
+    }
+
     let currentRequest = null;
     let currentDeepLink = null;
     let currentCircuit = 'age_verifier';
     let pollingTimer = null;
+
+    // Confetti celebration animation
+    function celebrate() {
+      const duration = 3000;
+      const end = Date.now() + duration;
+
+      (function frame() {
+        confetti({
+          particleCount: 3,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#6366f1', '#a855f7', '#22c55e']
+        });
+        confetti({
+          particleCount: 3,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#6366f1', '#a855f7', '#22c55e']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      })();
+    }
 
     // Utility functions
     function generateRequestId() {
@@ -567,7 +645,10 @@
 
     // Handle proof result received from server
     function handleProofResult(data) {
-      const { requestId, status, proof, publicInputs, numPublicInputs, circuit, error } = data;
+      const {
+        requestId, status, proof, publicInputs, numPublicInputs, circuit, error,
+        verificationType, verificationResult, startedAt, completedAt, expiresAt, inputs
+      } = data;
 
       log(`=== Proof Result Received ===`, 'info');
       log(`Request ID: ${requestId}`, 'info');
@@ -582,6 +663,34 @@
       existingResults.forEach(el => el.remove());
 
       if (status === 'completed') {
+        // Log verification details
+        if (verificationType) {
+          log(`Verification Type: ${verificationType}`, 'info');
+        }
+        if (verificationResult !== undefined) {
+          log(`Verification Result: ${verificationResult ? '✅ VALID' : '❌ INVALID'}`, verificationResult ? 'success' : 'error');
+        }
+
+        // Log timing info
+        if (startedAt) {
+          log(`Started At: ${new Date(startedAt).toLocaleString()}`, 'info');
+        }
+        if (completedAt) {
+          log(`Completed At: ${new Date(completedAt).toLocaleString()}`, 'info');
+        }
+        if (startedAt && completedAt) {
+          const duration = ((completedAt - startedAt) / 1000).toFixed(2);
+          log(`Duration: ${duration}s`, 'info');
+        }
+        if (expiresAt) {
+          log(`Expires At: ${new Date(expiresAt).toLocaleString()}`, 'info');
+        }
+
+        // Log original inputs
+        if (inputs && Object.keys(inputs).length > 0) {
+          log(`Original Inputs: ${JSON.stringify(inputs)}`, 'info');
+        }
+
         if (proof) {
           document.getElementById('proofInput').value = proof;
           log(`Proof: ${proof.substring(0, 60)}...`, 'success');
@@ -600,20 +709,39 @@
           log(`Number of Public Inputs: ${numPublicInputs}`, 'info');
         }
 
-        document.getElementById('request-status').textContent = 'Completed';
+        // Update status badge based on verification result
+        const isVerified = verificationResult === true;
+        document.getElementById('request-status').textContent = isVerified ? 'Verified ✅' : 'Completed';
         document.getElementById('request-status').className = 'status-badge completed';
+
+        // Celebrate on success!
+        if (isVerified) {
+          celebrate();
+        }
 
         // Hide QR/deeplink displays
         document.getElementById('qr-display').classList.add('hidden');
         document.getElementById('deeplink-display').classList.add('hidden');
 
-        // Show success result
+        // Build timing info string
+        let timingInfo = '';
+        if (startedAt && completedAt) {
+          const duration = ((completedAt - startedAt) / 1000).toFixed(2);
+          timingInfo = `<br><small>Duration: ${duration}s</small>`;
+        }
+
+        // Show success result with verification details
         const successHtml = `
           <div class="result success" style="margin-top: 1rem;">
             <div class="result-title">✅ Proof Received from App!</div>
-            <p>The ZK proof has been successfully generated and sent back.</p>
+            <p>
+              <strong>Verification Type:</strong> ${verificationType || 'N/A'}<br>
+              <strong>Verification Result:</strong> ${verificationResult === true ? '✅ VALID' : verificationResult === false ? '❌ INVALID' : 'N/A'}
+              ${timingInfo}
+            </p>
+            ${inputs ? `<p style="font-size: 0.75rem; margin-top: 0.5rem; color: var(--text-muted);">Inputs: ${JSON.stringify(inputs)}</p>` : ''}
             <p style="font-size: 0.875rem; margin-top: 0.5rem;">
-              You can now verify the proof on-chain using the Verification section below.
+              ${verificationResult ? 'The proof has been verified on-chain.' : 'You can verify the proof again using the section below.'}
             </p>
           </div>
         `;
@@ -622,8 +750,7 @@
         // Scroll to verification section
         document.getElementById('verify-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-        log('=== Ready for On-chain Verification ===', 'success');
-        log('Click "On-chain 검증" button below to verify the proof on Sepolia', 'info');
+        log('=== Proof Processing Complete ===', 'success');
 
       } else if (status === 'error') {
         log(`Error from app: ${error}`, 'error');
@@ -755,16 +882,27 @@
       log(`Created age verification request: ${request.requestId}`, 'success');
       log(`Callback URL: ${callbackUrl}`, 'info');
 
-      // Start polling for result (only if using server callback)
-      if (!customCallbackUrl) {
-        startPolling(request.requestId);
-      }
+      // Start polling for result
+      startPolling(request.requestId);
     };
 
     window.createAgeQR = async function() {
       if (!validateAgeInputs()) {
         log('입력값을 확인해주세요', 'error');
         return;
+      }
+
+      // Check if using localhost - warn user about QR code limitation
+      const qrCallbackUrl = getQRCallbackUrl();
+      if (!qrCallbackUrl) {
+        const localIP = await getLocalIPHint();
+        alert(`⚠️ QR 코드 사용 시 주의!\n\n` +
+              `현재 localhost로 접속 중입니다.\n` +
+              `모바일 기기에서 QR 스캔 시 콜백을 받을 수 없습니다.\n\n` +
+              `해결 방법:\n` +
+              `1. Callback URL에 서버 IP 입력: http://${localIP}:3333/callback\n` +
+              `2. 또는 http://${localIP}:3333 으로 접속하세요`);
+        log(`QR 사용 시 Callback URL에 로컬 IP 입력 필요: http://${localIP}:3333/callback`, 'warning');
       }
 
       // Use custom callback URL if provided, otherwise use server's callback endpoint
@@ -793,10 +931,8 @@
       log(`Created QR code for age verification: ${request.requestId}`, 'success');
       log(`Callback URL: ${callbackUrl}`, 'info');
 
-      // Start polling for result (only if using server callback)
-      if (!customCallbackUrl) {
-        startPolling(request.requestId);
-      }
+      // Start polling for result
+      startPolling(request.requestId);
     };
 
     // Coinbase KYC Request (지갑 주소 입력 불필요!)
@@ -826,13 +962,24 @@
       log(`Callback URL: ${callbackUrl}`, 'info');
       log('앱에서 지갑 연결 후 자동으로 검증이 시작됩니다', 'info');
 
-      // Start polling for result (only if using server callback)
-      if (!customCallbackUrl) {
-        startPolling(request.requestId);
-      }
+      // Start polling for result
+      startPolling(request.requestId);
     };
 
     window.createCoinbaseQR = async function() {
+      // Check if using localhost - warn user about QR code limitation
+      const qrCallbackUrl = getQRCallbackUrl();
+      if (!qrCallbackUrl) {
+        const localIP = await getLocalIPHint();
+        alert(`⚠️ QR 코드 사용 시 주의!\n\n` +
+              `현재 localhost로 접속 중입니다.\n` +
+              `모바일 기기에서 QR 스캔 시 콜백을 받을 수 없습니다.\n\n` +
+              `해결 방법:\n` +
+              `1. Callback URL에 서버 IP 입력: http://${localIP}:3333/callback\n` +
+              `2. 또는 http://${localIP}:3333 으로 접속하세요`);
+        log(`QR 사용 시 Callback URL에 로컬 IP 입력 필요: http://${localIP}:3333/callback`, 'warning');
+      }
+
       // Use custom callback URL if provided, otherwise use server's callback endpoint
       const customCallbackUrl = document.getElementById('coinbaseCallbackUrl').value;
       const callbackUrl = customCallbackUrl || CALLBACK_URL;
@@ -858,10 +1005,8 @@
       log(`Callback URL: ${callbackUrl}`, 'info');
       log('앱에서 지갑 연결 후 자동으로 검증이 시작됩니다', 'info');
 
-      // Start polling for result (only if using server callback)
-      if (!customCallbackUrl) {
-        startPolling(request.requestId);
-      }
+      // Start polling for result
+      startPolling(request.requestId);
     };
 
     async function showRequestResult(request, deepLink, showQR) {
@@ -1087,6 +1232,11 @@
 
     // Initialize
     checkCallbackResponse();
+
+    // Set default callback URLs
+    document.getElementById('callbackUrl').value = CALLBACK_URL;
+    document.getElementById('coinbaseCallbackUrl').value = CALLBACK_URL;
+
     log('ProofPort SDK Demo initialized', 'info');
   </script>
 </body>
