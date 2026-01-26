@@ -156,3 +156,10 @@ broadcast/
 
 # Demo server data
 sdk/demo/results.json
+
+# ====================
+# Planning Files (planning-with-files skill)
+# ====================
+task_plan.md
+findings.md
+progress.md
